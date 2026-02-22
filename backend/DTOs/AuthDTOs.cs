@@ -33,6 +33,7 @@ public class UserInfo
     public bool IsSuperAdmin { get; set; }
     public bool IsCompanyAdmin { get; set; }
     public Dictionary<string, bool>? Permissions { get; set; }
+    public List<string>? PagePermissions { get; set; }
 }
 
 public class ChangePasswordRequest

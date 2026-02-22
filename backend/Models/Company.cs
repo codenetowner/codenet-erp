@@ -116,6 +116,10 @@ public class Company
     [MaxLength(50)]
     public string? PremiumTier { get; set; }
 
+    // Page permissions - JSON array of allowed page paths (null = all pages allowed)
+    [Column("page_permissions")]
+    public string? PagePermissions { get; set; }
+
     // Navigation
     public Plan? Plan { get; set; }
     public StoreCategory? StoreCategory { get; set; }

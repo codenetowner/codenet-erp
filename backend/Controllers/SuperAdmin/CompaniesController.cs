@@ -5,6 +5,7 @@ using Catalyst.API.Data;
 using Catalyst.API.DTOs;
 using Catalyst.API.Models;
 using Catalyst.API.Services;
+using System.Text.Json;
 
 namespace Catalyst.API.Controllers.SuperAdmin;
 
@@ -61,7 +62,8 @@ public class CompaniesController : ControllerBase
                 StoreCategoryName = c.StoreCategory != null ? c.StoreCategory.Name : null,
                 IsOnlineStoreEnabled = c.IsOnlineStoreEnabled,
                 IsPremium = c.IsPremium,
-                PremiumTier = c.PremiumTier
+                PremiumTier = c.PremiumTier,
+                PagePermissions = string.IsNullOrEmpty(c.PagePermissions) ? null : JsonSerializer.Deserialize<List<string>>(c.PagePermissions)
             })
             .ToListAsync();
 
@@ -110,6 +112,7 @@ public class CompaniesController : ControllerBase
             IsOnlineStoreEnabled = company.IsOnlineStoreEnabled,
             IsPremium = company.IsPremium,
             PremiumTier = company.PremiumTier,
+            PagePermissions = string.IsNullOrEmpty(company.PagePermissions) ? null : JsonSerializer.Deserialize<List<string>>(company.PagePermissions),
             EmployeeCount = employeeCount,
             DriverCount = driverCount,
             VanCount = vanCount,
@@ -145,6 +148,7 @@ public class CompaniesController : ControllerBase
             Notes = request.Notes,
             StoreCategoryId = request.StoreCategoryId,
             IsOnlineStoreEnabled = request.IsOnlineStoreEnabled,
+            PagePermissions = request.PagePermissions != null ? JsonSerializer.Serialize(request.PagePermissions) : null,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -186,6 +190,7 @@ public class CompaniesController : ControllerBase
         company.Notes = request.Notes;
         company.StoreCategoryId = request.StoreCategoryId;
         company.IsOnlineStoreEnabled = request.IsOnlineStoreEnabled;
+        company.PagePermissions = request.PagePermissions != null ? JsonSerializer.Serialize(request.PagePermissions) : null;
         company.UpdatedAt = DateTime.UtcNow;
 
         if (!string.IsNullOrEmpty(request.NewPassword))

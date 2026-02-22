@@ -51,6 +51,7 @@ public class CompanyListDto
     public bool IsOnlineStoreEnabled { get; set; }
     public bool IsPremium { get; set; }
     public string? PremiumTier { get; set; }
+    public List<string>? PagePermissions { get; set; }
 }
 
 public class CompanyDetailDto
@@ -76,6 +77,7 @@ public class CompanyDetailDto
     public bool IsOnlineStoreEnabled { get; set; }
     public bool IsPremium { get; set; }
     public string? PremiumTier { get; set; }
+    public List<string>? PagePermissions { get; set; }
     
     // Stats
     public int EmployeeCount { get; set; }
@@ -97,6 +99,7 @@ public class CreateCompanyRequest
     public string? Notes { get; set; }
     public int? StoreCategoryId { get; set; }
     public bool IsOnlineStoreEnabled { get; set; }
+    public List<string>? PagePermissions { get; set; }
 }
 
 public class UpdateCompanyRequest
@@ -112,6 +115,7 @@ public class UpdateCompanyRequest
     public string? NewPassword { get; set; }
     public int? StoreCategoryId { get; set; }
     public bool IsOnlineStoreEnabled { get; set; }
+    public List<string>? PagePermissions { get; set; }
 }
 
 public class ResetPasswordRequest

@@ -161,12 +161,20 @@ export default function Layout() {
     window.location.href = (import.meta.env.BASE_URL || '/') + 'login'
   }
 
-  // Filter nav sections and items based on permissions and search
+  // Filter nav sections and items based on permissions, page permissions, and search
   const visibleSections = navSections.map(section => ({
     ...section,
     items: section.items.filter(item => {
-      // Permission check
+      // Permission check (role-based)
       if (item.permission && !isCompanyAdmin && !hasPermission(item.permission)) return false
+      
+      // Page permissions check (company-level restrictions)
+      // If pagePermissions is set and not empty, only show allowed pages
+      if (user?.pagePermissions && user.pagePermissions.length > 0) {
+        const pageId = item.path.replace('/', '') || 'dashboard'
+        if (!user.pagePermissions.includes(pageId)) return false
+      }
+      
       // Search filter
       if (searchQuery.trim()) {
         return item.label.toLowerCase().includes(searchQuery.toLowerCase())

@@ -21,6 +21,7 @@ interface Company {
   isOnlineStoreEnabled: boolean
   isPremium: boolean
   premiumTier?: string
+  pagePermissions?: string[]
 }
 
 interface StoreCategory {
@@ -50,7 +51,46 @@ interface CompanyForm {
   notes: string
   storeCategoryId: number | null
   isOnlineStoreEnabled: boolean
+  pagePermissions: string[]
 }
+
+// Available pages in company portal
+const AVAILABLE_PAGES = [
+  { id: 'dashboard', label: 'Dashboard', section: 'Main' },
+  { id: 'employees', label: 'Employees', section: 'Team' },
+  { id: 'attendance', label: 'Attendance', section: 'Team' },
+  { id: 'roles', label: 'Roles', section: 'Team' },
+  { id: 'vans', label: 'Vans', section: 'Operations' },
+  { id: 'salesmen', label: 'Salesmen', section: 'Operations' },
+  { id: 'warehouses', label: 'Warehouses', section: 'Operations' },
+  { id: 'products', label: 'Products', section: 'Inventory' },
+  { id: 'categories', label: 'Categories', section: 'Inventory' },
+  { id: 'units', label: 'Units', section: 'Inventory' },
+  { id: 'stock-adjustment', label: 'Stock Adjust', section: 'Inventory' },
+  { id: 'valuation', label: 'Valuation', section: 'Inventory' },
+  { id: 'inventory-settings', label: 'Inv Settings', section: 'Inventory' },
+  { id: 'raw-materials', label: 'Raw Materials', section: 'Production' },
+  { id: 'raw-material-purchases', label: 'RM Purchases', section: 'Production' },
+  { id: 'production-orders', label: 'Production', section: 'Production' },
+  { id: 'customers', label: 'Customers', section: 'Sales' },
+  { id: 'leads', label: 'Leads', section: 'Sales' },
+  { id: 'tasks', label: 'Orders & Tasks', section: 'Sales' },
+  { id: 'quotes', label: 'Quotes', section: 'Sales' },
+  { id: 'direct-sales', label: 'Direct Sales', section: 'Sales' },
+  { id: 'cash', label: 'Cash', section: 'Finance' },
+  { id: 'suppliers', label: 'Suppliers', section: 'Finance' },
+  { id: 'expenses', label: 'Expenses', section: 'Finance' },
+  { id: 'currencies', label: 'Currencies', section: 'Finance' },
+  { id: 'chart-of-accounts', label: 'Chart of Accounts', section: 'Accounting' },
+  { id: 'journal-entries', label: 'Journal Entries', section: 'Accounting' },
+  { id: 'account-ledger', label: 'Account Ledger', section: 'Accounting' },
+  { id: 'financial-reports', label: 'Financial Reports', section: 'Accounting' },
+  { id: 'reports', label: 'Reports', section: 'Reports' },
+  { id: 'deep-report', label: 'Deep Report', section: 'Reports' },
+  { id: 'online-store-settings', label: 'Store Settings', section: 'Online Store' },
+  { id: 'online-orders', label: 'Online Orders', section: 'Online Store' },
+  { id: 'settings', label: 'Settings', section: 'Settings' },
+]
 
 const initialForm: CompanyForm = {
   name: '',
@@ -64,7 +104,8 @@ const initialForm: CompanyForm = {
   status: 'active',
   notes: '',
   storeCategoryId: null,
-  isOnlineStoreEnabled: false
+  isOnlineStoreEnabled: false,
+  pagePermissions: []
 }
 
 export default function Companies() {
@@ -238,7 +279,8 @@ export default function Companies() {
         status: company.status,
         notes: '',
         storeCategoryId: company.storeCategoryId || null,
-        isOnlineStoreEnabled: company.isOnlineStoreEnabled || false
+        isOnlineStoreEnabled: company.isOnlineStoreEnabled || false,
+        pagePermissions: company.pagePermissions || []
       })
       setEditingId(id)
       setShowModal(true)
@@ -252,7 +294,8 @@ export default function Companies() {
       logoUrl: form.logoUrl || undefined,
       planId: form.planId || undefined,
       planExpiryDate: form.planExpiryDate || undefined,
-      newPassword: form.password || undefined
+      newPassword: form.password || undefined,
+      pagePermissions: form.pagePermissions.length > 0 ? form.pagePermissions : null
     }
     
     if (editingId) {
@@ -617,6 +660,64 @@ export default function Companies() {
                   className="input"
                   rows={3}
                 />
+              </div>
+
+              {/* Page Permissions */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-300">Page Permissions</label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, pagePermissions: AVAILABLE_PAGES.map(p => p.id) })}
+                      className="text-xs text-purple-400 hover:text-purple-300"
+                    >
+                      Select All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, pagePermissions: [] })}
+                      className="text-xs text-gray-400 hover:text-gray-300"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mb-3">
+                  {form.pagePermissions.length === 0 
+                    ? 'No restrictions - company has access to all pages' 
+                    : `${form.pagePermissions.length} pages selected`}
+                </p>
+                <div className="max-h-48 overflow-y-auto bg-gray-900 rounded-lg p-3 space-y-3">
+                  {['Main', 'Team', 'Operations', 'Inventory', 'Production', 'Sales', 'Finance', 'Accounting', 'Reports', 'Online Store', 'Settings'].map(section => {
+                    const sectionPages = AVAILABLE_PAGES.filter(p => p.section === section)
+                    if (sectionPages.length === 0) return null
+                    return (
+                      <div key={section}>
+                        <div className="text-xs font-semibold text-gray-400 uppercase mb-1">{section}</div>
+                        <div className="grid grid-cols-2 gap-1">
+                          {sectionPages.map(page => (
+                            <label key={page.id} className="flex items-center gap-2 cursor-pointer text-sm">
+                              <input
+                                type="checkbox"
+                                checked={form.pagePermissions.includes(page.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setForm({ ...form, pagePermissions: [...form.pagePermissions, page.id] })
+                                  } else {
+                                    setForm({ ...form, pagePermissions: form.pagePermissions.filter(p => p !== page.id) })
+                                  }
+                                }}
+                                className="w-3.5 h-3.5 rounded border-gray-600 bg-gray-700 text-purple-500 focus:ring-purple-500"
+                              />
+                              <span className="text-gray-300">{page.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
 
               <div className="flex gap-3 pt-4">

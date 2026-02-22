@@ -14,6 +14,7 @@ interface User {
   isSuperAdmin: boolean
   isCompanyAdmin: boolean
   permissions?: Record<string, boolean>
+  pagePermissions?: string[]
 }
 
 export function useAuth() {

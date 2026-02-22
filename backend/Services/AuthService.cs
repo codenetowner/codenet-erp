@@ -88,6 +88,17 @@ public class AuthService : IAuthService
         if (!passwordValid)
             return null;
 
+        // Parse page permissions if set
+        List<string>? pagePermissions = null;
+        if (!string.IsNullOrEmpty(company.PagePermissions))
+        {
+            try
+            {
+                pagePermissions = System.Text.Json.JsonSerializer.Deserialize<List<string>>(company.PagePermissions);
+            }
+            catch { }
+        }
+
         var userInfo = new UserInfo
         {
             Id = company.Id,
@@ -99,7 +110,8 @@ public class AuthService : IAuthService
             IsDriver = false,
             IsCompanyAdmin = true,
             Role = "CompanyAdmin",
-            Permissions = null // CompanyAdmin has all permissions - checked on frontend
+            Permissions = null, // CompanyAdmin has all permissions - checked on frontend
+            PagePermissions = pagePermissions
         };
 
         var token = GenerateJwtToken(userInfo);

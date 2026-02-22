@@ -173,6 +173,12 @@ using (var scope = app.Services.CreateScope())
                 END $$;
             ");
             Console.WriteLine("Foreign key constraints updated to SET NULL on delete");
+
+            // Add page_permissions column to companies table
+            context.Database.ExecuteSqlRaw(@"
+                ALTER TABLE companies ADD COLUMN IF NOT EXISTS page_permissions TEXT;
+            ");
+            Console.WriteLine("Page permissions column added/verified");
         }
         catch (Exception migrationEx)
         {

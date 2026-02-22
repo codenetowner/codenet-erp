@@ -41,10 +41,15 @@ public class InstallerForm : Form
     private CheckBox chkStartNow = null!;
     
     // Installation paths
-    private string installPath = "";
+    private string sourcePath = "";  // Where source files are located
+    private string installPath = @"C:\Catalyst";  // Where to install (user can change)
     private string postgresPath = "";
     private bool postgresInstalled = false;
     private string defaultDbName = "catalyst_offline";
+    
+    // Install location UI
+    private TextBox txtInstallPath = null!;
+    private Button btnBrowse = null!;
     
     // License validation
     private TextBox txtLicenseKey = null!;
@@ -57,11 +62,27 @@ public class InstallerForm : Form
     public InstallerForm()
     {
         InitializeComponent();
-        installPath = Path.GetDirectoryName(Path.GetDirectoryName(Application.ExecutablePath)) ?? "";
-        if (string.IsNullOrEmpty(installPath) || installPath.EndsWith("installer"))
+        
+        // Get the directory where the installer EXE is located (source files)
+        var exePath = Application.ExecutablePath;
+        var exeDir = Path.GetDirectoryName(exePath) ?? "";
+        
+        // Find source path (where backend/company folders are)
+        if (exeDir.Contains("installer"))
         {
-            installPath = Path.GetDirectoryName(installPath) ?? AppDomain.CurrentDomain.BaseDirectory;
+            sourcePath = exeDir;
+            while (!string.IsNullOrEmpty(sourcePath) && Path.GetFileName(sourcePath) != "cashvan-main-master")
+            {
+                var parent = Path.GetDirectoryName(sourcePath);
+                if (parent == sourcePath || string.IsNullOrEmpty(parent)) break;
+                sourcePath = parent;
+            }
         }
+        else
+        {
+            sourcePath = exeDir;
+        }
+        
         CheckPostgresInstalled();
     }
     
@@ -932,11 +953,17 @@ when internet is available.",
         {
             progressBar.Value = 0;
             
+            // Step 0: Copy source files to install location
+            Log($"Copying files to {installPath}...");
+            progressLabel.Text = "Copying files...";
+            await CopySourceFiles();
+            progressBar.Value = 15;
+            
             // Step 1: Create database
             Log("Creating database...");
             progressLabel.Text = "Creating database...";
             await CreateDatabase();
-            progressBar.Value = 20;
+            progressBar.Value = 25;
             
             // Step 2: Apply schema
             Log("Applying database schema...");
@@ -962,9 +989,15 @@ when internet is available.",
             ConfigurePortals();
             FixPortalBasename();
             FixLaunchSettings();
-            progressBar.Value = 70;
+            progressBar.Value = 60;
             
-            // Step 5: Create launchers
+            // Step 6: Install npm dependencies
+            Log("Installing frontend dependencies...");
+            progressLabel.Text = "Installing dependencies (this may take a minute)...";
+            await InstallNpmDependencies();
+            progressBar.Value = 75;
+            
+            // Step 7: Create launchers
             Log("Creating portal launchers...");
             progressLabel.Text = "Creating launchers...";
             CreateLaunchers();
@@ -974,9 +1007,15 @@ when internet is available.",
             Log("Creating desktop shortcuts...");
             progressLabel.Text = "Creating desktop shortcuts...";
             CreateDesktopShortcuts();
+            progressBar.Value = 90;
+            
+            // Step 7: Add backend to Windows startup
+            Log("Adding backend to Windows startup...");
+            progressLabel.Text = "Configuring auto-start...";
+            AddBackendToStartup();
             progressBar.Value = 95;
             
-            // Step 7: Save license info locally
+            // Step 8: Save license info locally
             Log("Saving license information...");
             progressLabel.Text = "Saving license...";
             await SaveLicenseLocally();
@@ -999,6 +1038,67 @@ when internet is available.",
             MessageBox.Show($"Installation failed:\n\n{ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             nextButton.Text = "Retry";
             nextButton.Enabled = true;
+        }
+    }
+    
+    private async Task CopySourceFiles()
+    {
+        await Task.Run(() =>
+        {
+            // Create install directory
+            if (!Directory.Exists(installPath))
+            {
+                Directory.CreateDirectory(installPath);
+            }
+            
+            // Copy backend folder
+            var srcBackend = Path.Combine(sourcePath, "backend");
+            var dstBackend = Path.Combine(installPath, "backend");
+            if (Directory.Exists(srcBackend) && !Directory.Exists(dstBackend))
+            {
+                CopyDirectory(srcBackend, dstBackend);
+                Log("Backend files copied.");
+            }
+            
+            // Copy company folder
+            var srcCompany = Path.Combine(sourcePath, "company");
+            var dstCompany = Path.Combine(installPath, "company");
+            if (Directory.Exists(srcCompany) && !Directory.Exists(dstCompany))
+            {
+                CopyDirectory(srcCompany, dstCompany);
+                Log("Company portal files copied.");
+            }
+            
+            // Copy schema file if exists
+            var srcSchema = Path.Combine(sourcePath, "cashvan_schema.sql");
+            var dstSchema = Path.Combine(installPath, "cashvan_schema.sql");
+            if (System.IO.File.Exists(srcSchema) && !System.IO.File.Exists(dstSchema))
+            {
+                System.IO.File.Copy(srcSchema, dstSchema);
+                Log("Schema file copied.");
+            }
+        });
+    }
+    
+    private void CopyDirectory(string sourceDir, string destDir)
+    {
+        Directory.CreateDirectory(destDir);
+        
+        // Copy files
+        foreach (var file in Directory.GetFiles(sourceDir))
+        {
+            var destFile = Path.Combine(destDir, Path.GetFileName(file));
+            System.IO.File.Copy(file, destFile, true);
+        }
+        
+        // Copy subdirectories
+        foreach (var dir in Directory.GetDirectories(sourceDir))
+        {
+            var dirName = Path.GetFileName(dir);
+            // Skip bin, obj, .git folders (but keep node_modules - needed for runtime)
+            if (dirName == "bin" || dirName == "obj" || dirName == ".git")
+                continue;
+            CopyDirectory(dir, Path.Combine(destDir, dirName));
         }
     }
     
@@ -1123,38 +1223,202 @@ when internet is available.",
 VITE_API_URL=/api
 ";
         
-        foreach (var portal in new[] { "company", "admin" })
+        // Only configure company portal (admin is online-only)
+        var envPath = Path.Combine(installPath, "company", ".env.local");
+        System.IO.File.WriteAllText(envPath, envContent);
+        Log("Company portal configured.");
+    }
+    
+    private async Task InstallNpmDependencies()
+    {
+        try
         {
-            var envPath = Path.Combine(installPath, portal, ".env.local");
-            System.IO.File.WriteAllText(envPath, envContent);
-            Log($"{portal} portal configured.");
+            var companyPath = Path.Combine(installPath, "company");
+            var nodeModulesPath = Path.Combine(companyPath, "node_modules");
+            
+            // Delete existing node_modules to ensure clean install
+            if (Directory.Exists(nodeModulesPath))
+            {
+                Log("Removing old node_modules...");
+                Directory.Delete(nodeModulesPath, true);
+            }
+            
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "cmd.exe",
+                    Arguments = "/c npm install",
+                    WorkingDirectory = companyPath,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                }
+            };
+            process.Start();
+            await process.WaitForExitAsync();
+            
+            if (process.ExitCode == 0)
+            {
+                Log("Frontend dependencies installed.");
+            }
+            else
+            {
+                var error = await process.StandardError.ReadToEndAsync();
+                Log($"npm install warning: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log($"npm install error: {ex.Message}");
         }
     }
     
     private void CreateLaunchers()
     {
-        // Create Company Portal launcher only (no Admin Portal for offline version)
-        var companyLauncher = @"@echo off
-set ROOT=%~dp0
-
-:: Start backend if not already running
-netstat -ano | findstr "":5227"" >nul
-if errorlevel 1 (
-    echo Starting Backend...
-    start ""Catalyst Backend"" /min cmd /k ""cd /d %ROOT%backend && set ASPNETCORE_ENVIRONMENT=Local && dotnet run""
-    echo Waiting for backend to start...
-    timeout /t 8 /nobreak >nul
-)
-
-:: Start Company Portal
-echo Starting Company Portal...
-start ""Catalyst Company"" cmd /k ""cd /d %ROOT%company && npx vite --port 3000""
-timeout /t 3 /nobreak >nul
-start http://localhost:3000
+        // Create Company Portal launcher (completely hidden, no taskbar)
+        var companyLauncher = $@"Set WshShell = CreateObject(""WScript.Shell"")
+WshShell.Run ""cmd /c cd /d {installPath}\company && npm run dev"", 0, False
+WScript.Sleep 6000
+WshShell.Run ""cmd /c start """""""" http://localhost:3000"", 0, False
+Set WshShell = Nothing
 ";
-        System.IO.File.WriteAllText(Path.Combine(installPath, "Launch-Company.bat"), companyLauncher);
+        System.IO.File.WriteAllText(Path.Combine(installPath, "Launch-Company.vbs"), companyLauncher);
         
-        Log("Launcher created.");
+        // Create Watch-Backend utility
+        var watchBackend = $@"@echo off
+title Catalyst Backend Monitor
+color 0A
+
+:check
+cls
+echo ========================================
+echo    Catalyst Backend Monitor
+echo ========================================
+echo.
+
+netstat -ano | findstr ""LISTENING"" | findstr "":5227 "" >nul
+if errorlevel 1 (
+    color 0C
+    echo  Status: OFFLINE
+    echo.
+    echo  The backend is NOT running.
+    echo.
+    echo  Press R to refresh, S to start manually, or Q to quit...
+    choice /C RSQ /N
+    if errorlevel 3 exit
+    if errorlevel 2 goto start
+    if errorlevel 1 goto check
+) else (
+    color 0A
+    echo  Status: ONLINE
+    echo.
+    echo  Backend is running on http://localhost:5227
+    echo.
+    for /f ""tokens=5"" %%a in ('netstat -ano ^| findstr "":5227 "" ^| findstr ""LISTENING""') do (
+        echo  Process ID: %%a
+    )
+    echo.
+    echo  Press R to refresh, L to view logs, or Q to quit...
+    choice /C RLQ /N
+    if errorlevel 3 exit
+    if errorlevel 2 goto logs
+    if errorlevel 1 goto check
+)
+goto check
+
+:start
+echo Starting backend...
+cd /d ""{installPath}\backend""
+start ""Catalyst Backend"" cmd /k ""set ASPNETCORE_ENVIRONMENT=Local && dotnet run""
+timeout /t 5 >nul
+goto check
+
+:logs
+cls
+echo ========================================
+echo    Catalyst Backend Live Logs
+echo ========================================
+echo  (Press Ctrl+C to stop and return)
+echo ========================================
+echo.
+cd /d ""{installPath}\backend""
+set ASPNETCORE_ENVIRONMENT=Local
+dotnet run
+goto check
+";
+        System.IO.File.WriteAllText(Path.Combine(installPath, "Watch-Backend.bat"), watchBackend);
+        
+        // Create Watch-Frontend utility
+        var watchFrontend = $@"@echo off
+title Catalyst Frontend Monitor
+color 0B
+
+:check
+cls
+echo ========================================
+echo    Catalyst Frontend Monitor
+echo ========================================
+echo.
+
+netstat -ano | findstr ""LISTENING"" | findstr "":3000 "" >nul
+if errorlevel 1 (
+    color 0C
+    echo  Status: OFFLINE
+    echo.
+    echo  The frontend portal is NOT running.
+    echo.
+    echo  Press R to refresh, S to start, or Q to quit...
+    choice /C RSQ /N
+    if errorlevel 3 exit
+    if errorlevel 2 goto start
+    if errorlevel 1 goto check
+) else (
+    color 0B
+    echo  Status: ONLINE
+    echo.
+    echo  Frontend is running on http://localhost:3000
+    echo.
+    for /f ""tokens=5"" %%a in ('netstat -ano ^| findstr "":3000 "" ^| findstr ""LISTENING""') do (
+        echo  Process ID: %%a
+    )
+    echo.
+    echo  Press R to refresh, L to view logs, O to open browser, or Q to quit...
+    choice /C RLOQ /N
+    if errorlevel 4 exit
+    if errorlevel 3 goto open
+    if errorlevel 2 goto logs
+    if errorlevel 1 goto check
+)
+goto check
+
+:start
+echo Starting frontend...
+cd /d ""{installPath}\company""
+start ""Catalyst Company"" cmd /k ""npx vite --port 3000""
+timeout /t 5 >nul
+goto check
+
+:open
+start http://localhost:3000
+goto check
+
+:logs
+cls
+echo ========================================
+echo    Catalyst Frontend Live Logs
+echo ========================================
+echo  (Press Ctrl+C to stop and return)
+echo ========================================
+echo.
+cd /d ""{installPath}\company""
+npx vite --port 3000
+goto check
+";
+        System.IO.File.WriteAllText(Path.Combine(installPath, "Watch-Frontend.bat"), watchFrontend);
+        
+        Log("Launchers created.");
     }
     
     private void CreateDesktopShortcuts()
@@ -1166,7 +1430,7 @@ start http://localhost:3000
             // Use PowerShell to create shortcut (Company Portal only)
             CreateShortcutWithPowerShell(
                 Path.Combine(desktopPath, "Catalyst Company Portal.lnk"),
-                Path.Combine(installPath, "Launch-Company.bat"),
+                Path.Combine(installPath, "Launch-Company.vbs"),
                 installPath,
                 "Launch Catalyst Company Portal"
             );
@@ -1207,13 +1471,70 @@ $Shortcut.Save()
     {
         var desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
         
-        // Create simple batch shortcut (Company Portal only)
+        // Create simple VBS shortcut (Company Portal only)
         System.IO.File.Copy(
-            Path.Combine(installPath, "Launch-Company.bat"),
-            Path.Combine(desktopPath, "Catalyst Company Portal.bat"),
+            Path.Combine(installPath, "Launch-Company.vbs"),
+            Path.Combine(desktopPath, "Catalyst Company Portal.vbs"),
             true);
         
         Log("Desktop shortcut created (batch file).");
+    }
+    
+    private void AddBackendToStartup()
+    {
+        try
+        {
+            // Create a startup batch file that runs silently
+            var startupScript = $@"@echo off
+cd /d ""{installPath}\backend""
+set ASPNETCORE_ENVIRONMENT=Local
+start /min """" dotnet run
+";
+            var startupBatPath = Path.Combine(installPath, "Start-Backend.bat");
+            System.IO.File.WriteAllText(startupBatPath, startupScript);
+            
+            // Create a VBS wrapper to run dotnet completely hidden (no taskbar icon)
+            var vbsScript = $@"Set WshShell = CreateObject(""WScript.Shell"")
+WshShell.CurrentDirectory = ""{installPath}\backend""
+WshShell.Run ""cmd /c set ASPNETCORE_ENVIRONMENT=Local && dotnet run"", 0, False
+Set WshShell = Nothing
+";
+            var vbsPath = Path.Combine(installPath, "Start-Backend-Hidden.vbs");
+            System.IO.File.WriteAllText(vbsPath, vbsScript);
+            
+            // Add to Windows Startup folder
+            var startupFolder = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
+            var shortcutPath = Path.Combine(startupFolder, "Catalyst Backend.lnk");
+            
+            // Use PowerShell to create shortcut in startup folder
+            var script = $@"
+$WshShell = New-Object -comObject WScript.Shell
+$Shortcut = $WshShell.CreateShortcut('{shortcutPath}')
+$Shortcut.TargetPath = 'wscript.exe'
+$Shortcut.Arguments = '""{vbsPath}""'
+$Shortcut.WorkingDirectory = '{installPath}'
+$Shortcut.Description = 'Catalyst Backend API'
+$Shortcut.Save()
+";
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    Arguments = $"-ExecutionPolicy Bypass -Command \"{script.Replace("\"", "\\\"")}\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
+            process.Start();
+            process.WaitForExit();
+            
+            Log("Backend added to Windows startup.");
+        }
+        catch (Exception ex)
+        {
+            Log($"Startup configuration warning: {ex.Message}");
+        }
     }
     
     private void LaunchCompanyPortal()
@@ -1357,11 +1678,21 @@ $Shortcut.Save()
             cmd.Parameters.AddWithValue("features", activatedLicense.Features ?? "");
             await cmd.ExecuteNonQueryAsync();
             
-            // Also create the company in the companies table
+            // Also create the company in the companies table with all required fields
             using var companyCmd = conn.CreateCommand();
             companyCmd.CommandText = @"
-                INSERT INTO companies (id, name, username, password_hash, status, created_at, updated_at, currency_symbol)
-                VALUES (@id, @name, @username, @passwordHash, 'active', NOW(), NOW(), @currency)
+                INSERT INTO companies (
+                    id, name, username, password_hash, status, created_at, updated_at, 
+                    currency_symbol, phone, address, logo_url, delivery_enabled, delivery_fee,
+                    exchange_rate, is_online_store_enabled, is_premium, low_stock_alert,
+                    max_cash_warning, min_order_amount, premium_tier, rating, show_secondary_price
+                )
+                VALUES (
+                    @id, @name, @username, @passwordHash, 'active', NOW(), NOW(),
+                    @currency, @phone, @address, @logo, false, 0,
+                    1, false, false, 10,
+                    1000, 0, 'none', 0, false
+                )
                 ON CONFLICT (id) DO UPDATE SET 
                     name = EXCLUDED.name,
                     username = EXCLUDED.username,
@@ -1372,6 +1703,9 @@ $Shortcut.Save()
             companyCmd.Parameters.AddWithValue("username", activatedLicense.Company.Username);
             companyCmd.Parameters.AddWithValue("passwordHash", activatedLicense.Company.PasswordHash);
             companyCmd.Parameters.AddWithValue("currency", activatedLicense.Company.CurrencySymbol ?? "$");
+            companyCmd.Parameters.AddWithValue("phone", (object?)activatedLicense.Company.Phone ?? DBNull.Value);
+            companyCmd.Parameters.AddWithValue("address", (object?)activatedLicense.Company.Address ?? DBNull.Value);
+            companyCmd.Parameters.AddWithValue("logo", (object?)activatedLicense.Company.LogoUrl ?? DBNull.Value);
             await companyCmd.ExecuteNonQueryAsync();
             
             Log($"License saved for company: {activatedLicense.Company.Name}");
