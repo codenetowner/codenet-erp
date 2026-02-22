@@ -20,7 +20,8 @@ public class SidebarController : ControllerBase
 
     private int GetCompanyId()
     {
-        var companyIdClaim = User.FindFirst("CompanyId")?.Value;
+        // Try both claim names for compatibility
+        var companyIdClaim = User.FindFirst("company_id")?.Value ?? User.FindFirst("CompanyId")?.Value;
         return int.TryParse(companyIdClaim, out var id) ? id : 0;
     }
 
