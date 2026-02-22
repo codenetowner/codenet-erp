@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Outlet, NavLink } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { 
   LayoutDashboard, 
   Package, 
@@ -155,11 +155,27 @@ export default function Layout() {
   const { hasPermission, isCompanyAdmin } = usePermissions()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const location = useLocation()
+  const navigate = useNavigate()
 
   const handleLogout = () => {
     logout()
     window.location.href = (import.meta.env.BASE_URL || '/') + 'login'
   }
+
+  // Check if current page is allowed based on pagePermissions
+  useEffect(() => {
+    if (user?.pagePermissions && user.pagePermissions.length > 0) {
+      const currentPageId = location.pathname === '/' ? 'dashboard' : location.pathname.slice(1)
+      
+      // If current page is not in allowed list, redirect to first allowed page
+      if (!user.pagePermissions.includes(currentPageId)) {
+        const firstAllowedPage = user.pagePermissions[0]
+        const redirectPath = firstAllowedPage === 'dashboard' ? '/' : `/${firstAllowedPage}`
+        navigate(redirectPath, { replace: true })
+      }
+    }
+  }, [location.pathname, user?.pagePermissions, navigate])
 
   // Filter nav sections and items based on permissions, page permissions, and search
   const visibleSections = navSections.map(section => ({
