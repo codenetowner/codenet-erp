@@ -22,9 +22,10 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Only redirect to login if we're not already on auth endpoints (to allow login flow to work)
+    // Only redirect to login if we're not already on auth endpoints or sidebar config (to allow login flow to work)
     const isAuthEndpoint = error.config?.url?.includes('/auth/')
-    if (error.response?.status === 401 && !isAuthEndpoint) {
+    const isSidebarEndpoint = error.config?.url?.includes('/sidebar/')
+    if (error.response?.status === 401 && !isAuthEndpoint && !isSidebarEndpoint) {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
       window.location.href = (import.meta.env.BASE_URL || '/') + 'login'
