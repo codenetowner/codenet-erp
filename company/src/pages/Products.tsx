@@ -618,6 +618,7 @@ export default function Products() {
       barcode: prod.barcode || '',
       boxBarcode: prod.boxBarcode || '',
       name: prod.name,
+      nameAr: prod.nameAr || '',
       description: prod.description || '',
       categoryId: prod.categoryId?.toString() || '',
       baseUnit: prod.baseUnit || 'Piece',
