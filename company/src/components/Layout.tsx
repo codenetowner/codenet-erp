@@ -171,7 +171,8 @@ export default function Layout() {
       // Page permissions check (company-level restrictions)
       // If pagePermissions is set and not empty, only show allowed pages
       if (user?.pagePermissions && user.pagePermissions.length > 0) {
-        const pageId = item.path.replace('/', '') || 'dashboard'
+        // Extract page ID from path: '/' -> 'dashboard', '/employees' -> 'employees'
+        const pageId = item.path === '/' ? 'dashboard' : item.path.slice(1)
         if (!user.pagePermissions.includes(pageId)) return false
       }
       
