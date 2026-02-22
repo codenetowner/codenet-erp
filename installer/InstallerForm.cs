@@ -1115,21 +1115,100 @@ when internet is available.",
             checkCmd.CommandText = $"SELECT 1 FROM pg_database WHERE datname = '{txtDbName.Text}'";
             var exists = await checkCmd.ExecuteScalarAsync() != null;
             
-            if (!exists)
+            if (exists)
+            {
+                // Check if the license in the existing database differs from the activated license
+                bool needsDrop = await CheckLicenseDiffers();
+                
+                if (needsDrop)
+                {
+                    Log($"Different license detected. Dropping existing database...");
+                    
+                    // Terminate existing connections to the database
+                    using var terminateCmd = conn.CreateCommand();
+                    terminateCmd.CommandText = $@"
+                        SELECT pg_terminate_backend(pid) 
+                        FROM pg_stat_activity 
+                        WHERE datname = '{txtDbName.Text}' AND pid <> pg_backend_pid()";
+                    await terminateCmd.ExecuteNonQueryAsync();
+                    
+                    // Drop the database
+                    using var dropCmd = conn.CreateCommand();
+                    dropCmd.CommandText = $"DROP DATABASE \"{txtDbName.Text}\"";
+                    await dropCmd.ExecuteNonQueryAsync();
+                    Log($"Database '{txtDbName.Text}' dropped.");
+                    
+                    // Create fresh database
+                    using var createCmd = conn.CreateCommand();
+                    createCmd.CommandText = $"CREATE DATABASE \"{txtDbName.Text}\"";
+                    await createCmd.ExecuteNonQueryAsync();
+                    Log($"Fresh database '{txtDbName.Text}' created.");
+                }
+                else
+                {
+                    Log($"Database '{txtDbName.Text}' already exists with same license.");
+                }
+            }
+            else
             {
                 using var createCmd = conn.CreateCommand();
                 createCmd.CommandText = $"CREATE DATABASE \"{txtDbName.Text}\"";
                 await createCmd.ExecuteNonQueryAsync();
                 Log($"Database '{txtDbName.Text}' created.");
             }
-            else
-            {
-                Log($"Database '{txtDbName.Text}' already exists.");
-            }
         }
         catch (Exception ex)
         {
             Log($"Warning: {ex.Message}");
+        }
+    }
+    
+    private async Task<bool> CheckLicenseDiffers()
+    {
+        if (activatedLicense == null) return false;
+        
+        try
+        {
+            var connStr = $"Host={txtHost.Text};Port={txtPort.Text};Username={txtUser.Text};Password={txtPass.Text};Database={txtDbName.Text}";
+            using var conn = new Npgsql.NpgsqlConnection(connStr);
+            await conn.OpenAsync();
+            
+            // Check if local_licenses table exists
+            using var checkTableCmd = conn.CreateCommand();
+            checkTableCmd.CommandText = "SELECT 1 FROM information_schema.tables WHERE table_name = 'local_licenses'";
+            var tableExists = await checkTableCmd.ExecuteScalarAsync() != null;
+            
+            if (!tableExists)
+            {
+                // No license table means fresh install or old version, don't drop
+                return false;
+            }
+            
+            // Get the existing license key
+            using var getLicenseCmd = conn.CreateCommand();
+            getLicenseCmd.CommandText = "SELECT license_key FROM local_licenses LIMIT 1";
+            var existingLicenseKey = await getLicenseCmd.ExecuteScalarAsync() as string;
+            
+            if (string.IsNullOrEmpty(existingLicenseKey))
+            {
+                // No license in DB, don't drop
+                return false;
+            }
+            
+            // Compare with the activated license
+            bool differs = existingLicenseKey != activatedLicense.LicenseKey;
+            if (differs)
+            {
+                Log($"Existing license: {existingLicenseKey}");
+                Log($"New license: {activatedLicense.LicenseKey}");
+            }
+            return differs;
+        }
+        catch (Exception ex)
+        {
+            Log($"License check info: {ex.Message}");
+            // If we can't check, assume it's okay to continue without dropping
+            return false;
         }
     }
     
