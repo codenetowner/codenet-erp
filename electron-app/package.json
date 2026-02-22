@@ -19,8 +19,7 @@
     "files": [
       "main.js",
       "preload.js",
-      "renderer/**/*",
-      "icon.ico"
+      "renderer/**/*"
     ],
     "extraResources": [
       {
@@ -30,23 +29,13 @@
       }
     ],
     "win": {
-      "target": "nsis",
-      "icon": "icon.ico"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "installerIcon": "icon.ico",
-      "uninstallerIcon": "icon.ico",
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "target": "portable"
     }
   },
   "dependencies": {
-    "express": "^4.18.2"
+    "express": "^4.21.0"
   },
   "devDependencies": {
-    "electron": "^28.0.0",
-    "electron-builder": "^24.9.1"
+    "electron": "^33.0.0"
   }
 }

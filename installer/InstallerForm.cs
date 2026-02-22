@@ -995,7 +995,19 @@ when internet is available.",
             Log("Installing frontend dependencies...");
             progressLabel.Text = "Installing dependencies (this may take a minute)...";
             await InstallNpmDependencies();
+            progressBar.Value = 70;
+            
+            // Step 6b: Build frontend for Electron
+            Log("Building frontend for Electron...");
+            progressLabel.Text = "Building frontend...";
+            await BuildFrontendForElectron();
             progressBar.Value = 75;
+            
+            // Step 6c: Install Electron dependencies
+            Log("Installing Electron dependencies...");
+            progressLabel.Text = "Installing Electron app...";
+            await InstallElectronDependencies();
+            progressBar.Value = 80;
             
             // Step 7: Create launchers
             Log("Creating portal launchers...");
@@ -1067,6 +1079,15 @@ when internet is available.",
             {
                 CopyDirectory(srcCompany, dstCompany);
                 Log("Company portal files copied.");
+            }
+            
+            // Copy electron-app folder
+            var srcElectron = Path.Combine(sourcePath, "electron-app");
+            var dstElectron = Path.Combine(installPath, "electron-app");
+            if (Directory.Exists(srcElectron) && !Directory.Exists(dstElectron))
+            {
+                CopyDirectory(srcElectron, dstElectron);
+                Log("Electron app files copied.");
             }
             
             // Copy schema file if exists
@@ -1359,18 +1380,127 @@ VITE_API_URL=/api
         }
     }
     
+    private async Task BuildFrontendForElectron()
+    {
+        try
+        {
+            var companyPath = Path.Combine(installPath, "company");
+            var electronPath = Path.Combine(installPath, "electron-app");
+            var rendererPath = Path.Combine(electronPath, "renderer");
+            
+            // Create .env.production.local for local API
+            var envFile = Path.Combine(companyPath, ".env.production.local");
+            System.IO.File.WriteAllText(envFile, "VITE_API_URL=http://localhost:5227/api");
+            
+            // Build frontend
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "cmd.exe",
+                    Arguments = "/c npm run build",
+                    WorkingDirectory = companyPath,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                }
+            };
+            process.Start();
+            await process.WaitForExitAsync();
+            
+            if (process.ExitCode == 0)
+            {
+                Log("Frontend built successfully.");
+                
+                // Copy dist to electron-app/renderer
+                var distPath = Path.Combine(companyPath, "dist");
+                if (Directory.Exists(distPath))
+                {
+                    if (Directory.Exists(rendererPath))
+                    {
+                        Directory.Delete(rendererPath, true);
+                    }
+                    CopyDirectory(distPath, rendererPath);
+                    Log("Frontend copied to Electron renderer.");
+                }
+            }
+            else
+            {
+                var error = await process.StandardError.ReadToEndAsync();
+                Log($"Frontend build warning: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log($"Frontend build error: {ex.Message}");
+        }
+    }
+    
+    private async Task InstallElectronDependencies()
+    {
+        try
+        {
+            var electronPath = Path.Combine(installPath, "electron-app");
+            if (!Directory.Exists(electronPath))
+            {
+                Log("Electron app folder not found, skipping...");
+                return;
+            }
+            
+            var nodeModulesPath = Path.Combine(electronPath, "node_modules");
+            
+            // Delete existing node_modules to ensure clean install
+            if (Directory.Exists(nodeModulesPath))
+            {
+                Log("Removing old Electron node_modules...");
+                Directory.Delete(nodeModulesPath, true);
+            }
+            
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "cmd.exe",
+                    Arguments = "/c npm install",
+                    WorkingDirectory = electronPath,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                }
+            };
+            process.Start();
+            await process.WaitForExitAsync();
+            
+            if (process.ExitCode == 0)
+            {
+                Log("Electron dependencies installed.");
+            }
+            else
+            {
+                var error = await process.StandardError.ReadToEndAsync();
+                Log($"Electron npm install warning: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log($"Electron npm install error: {ex.Message}");
+        }
+    }
+    
     private void CreateLaunchers()
     {
-        // Create Company Portal launcher (starts backend + frontend, completely hidden)
+        // Create Electron launcher script
+        var electronLauncher = $@"@echo off
+cd /d ""{installPath}\electron-app""
+start """" npx electron .
+";
+        System.IO.File.WriteAllText(Path.Combine(installPath, "Launch-Catalyst.bat"), electronLauncher);
+        
+        // Create VBS launcher (hidden, no console)
         var companyLauncher = $@"Set WshShell = CreateObject(""WScript.Shell"")
-' Start Backend first
-WshShell.Run ""cmd /c cd /d {installPath}\backend && set ASPNETCORE_ENVIRONMENT=Local && dotnet run"", 0, False
-WScript.Sleep 8000
-' Start Frontend
-WshShell.Run ""cmd /c cd /d {installPath}\company && npm run dev"", 0, False
-WScript.Sleep 5000
-' Open browser
-WshShell.Run ""cmd /c start """""""" http://localhost:3000"", 0, False
+WshShell.Run ""cmd /c cd /d {installPath}\electron-app && npx electron ."", 0, False
 Set WshShell = Nothing
 ";
         System.IO.File.WriteAllText(Path.Combine(installPath, "Launch-Company.vbs"), companyLauncher);
