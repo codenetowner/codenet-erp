@@ -1797,8 +1797,31 @@ $Shortcut.Save()
             companyCmd.Parameters.AddWithValue("pagePermissions", (object?)pagePermissionsJson ?? DBNull.Value);
             await companyCmd.ExecuteNonQueryAsync();
             
+            // Create Main Warehouse for the company if it doesn't exist
+            using var warehouseCmd = conn.CreateCommand();
+            warehouseCmd.CommandText = @"
+                INSERT INTO warehouses (company_id, name, code, is_active, created_at, updated_at)
+                SELECT @companyId, 'Main Warehouse', 'MAIN', true, NOW(), NOW()
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM warehouses WHERE company_id = @companyId
+                )";
+            warehouseCmd.Parameters.AddWithValue("companyId", activatedLicense.Company.Id);
+            await warehouseCmd.ExecuteNonQueryAsync();
+            
+            // Create inventory settings for the company if it doesn't exist
+            using var invSettingsCmd = conn.CreateCommand();
+            invSettingsCmd.CommandText = @"
+                INSERT INTO inventory_settings (company_id, valuation_method, cost_spike_threshold, low_margin_threshold, enable_cost_alerts, created_at, updated_at)
+                SELECT @companyId, 'fifo', 0.2, 0.1, true, NOW(), NOW()
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM inventory_settings WHERE company_id = @companyId
+                )";
+            invSettingsCmd.Parameters.AddWithValue("companyId", activatedLicense.Company.Id);
+            await invSettingsCmd.ExecuteNonQueryAsync();
+            
             Log($"License saved for company: {activatedLicense.Company.Name}");
             Log($"Company login: {activatedLicense.Company.Username}");
+            Log($"Main Warehouse created.");
         }
         catch (Exception ex)
         {
