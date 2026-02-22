@@ -21,7 +21,6 @@ import {
   Scale,
   SlidersHorizontal,
   UserPlus,
-  // RotateCcw,  // Commented out - Returns moved to Direct Sales
   ShoppingCart,
   PanelLeftClose,
   PanelLeft,
@@ -39,10 +38,51 @@ import {
   Landmark,
   BookOpen,
   FileBarChart,
-  BookMarked
+  BookMarked,
+  Menu
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { usePermissions, PERMISSIONS } from '../contexts/PermissionContext'
+import api from '../lib/api'
+
+// Page metadata mapping - used to build dynamic sidebar
+const PAGE_META: Record<string, { label: string; icon: any; permission?: string }> = {
+  'dashboard': { label: 'Dashboard', icon: LayoutDashboard, permission: PERMISSIONS.VIEW_DASHBOARD },
+  'employees': { label: 'Employees', icon: UserCog, permission: PERMISSIONS.VIEW_EMPLOYEES },
+  'attendance': { label: 'Attendance', icon: CalendarCheck, permission: PERMISSIONS.VIEW_ATTENDANCE },
+  'roles': { label: 'Roles', icon: Shield, permission: PERMISSIONS.VIEW_ROLES },
+  'vans': { label: 'Vans', icon: Truck, permission: PERMISSIONS.VIEW_VANS },
+  'salesmen': { label: 'Salesmen', icon: Briefcase, permission: PERMISSIONS.VIEW_EMPLOYEES },
+  'warehouses': { label: 'Warehouses', icon: Warehouse, permission: PERMISSIONS.VIEW_WAREHOUSES },
+  'products': { label: 'Products', icon: Package, permission: PERMISSIONS.VIEW_PRODUCTS },
+  'categories': { label: 'Categories', icon: Tags, permission: PERMISSIONS.VIEW_CATEGORIES },
+  'units': { label: 'Units', icon: Ruler, permission: PERMISSIONS.VIEW_UNITS },
+  'stock-adjustment': { label: 'Stock Adjust', icon: ArrowUpDown, permission: PERMISSIONS.ADJUST_STOCK_LEVELS },
+  'valuation': { label: 'Valuation', icon: Scale, permission: PERMISSIONS.VIEW_INVENTORY_VALUATION },
+  'inventory-settings': { label: 'Inv Settings', icon: SlidersHorizontal, permission: PERMISSIONS.EDIT_INVENTORY_SETTINGS },
+  'raw-materials': { label: 'Raw Materials', icon: Boxes, permission: PERMISSIONS.VIEW_PRODUCTS },
+  'raw-material-purchases': { label: 'RM Purchases', icon: FileText, permission: PERMISSIONS.VIEW_SUPPLIERS },
+  'production-orders': { label: 'Production', icon: Factory, permission: PERMISSIONS.VIEW_PRODUCTS },
+  'customers': { label: 'Customers', icon: Users, permission: PERMISSIONS.VIEW_CUSTOMERS },
+  'leads': { label: 'Leads', icon: UserPlus, permission: PERMISSIONS.VIEW_LEADS },
+  'tasks': { label: 'Orders & Tasks', icon: ListChecks, permission: PERMISSIONS.VIEW_ORDERS },
+  'quotes': { label: 'Quotes', icon: FileText, permission: PERMISSIONS.VIEW_QUOTES },
+  'direct-sales': { label: 'Direct Sales', icon: ShoppingCart, permission: PERMISSIONS.VIEW_DIRECT_SALES },
+  'cash': { label: 'Cash', icon: HandCoins, permission: PERMISSIONS.VIEW_COLLECTIONS },
+  'suppliers': { label: 'Suppliers', icon: TruckIcon, permission: PERMISSIONS.VIEW_SUPPLIERS },
+  'expenses': { label: 'Expenses', icon: Receipt, permission: PERMISSIONS.VIEW_EXPENSES },
+  'currencies': { label: 'Currencies', icon: Coins, permission: PERMISSIONS.VIEW_CURRENCIES },
+  'chart-of-accounts': { label: 'Chart of Accounts', icon: BookOpen, permission: PERMISSIONS.VIEW_ACCOUNTING },
+  'journal-entries': { label: 'Journal Entries', icon: BookMarked, permission: PERMISSIONS.VIEW_ACCOUNTING },
+  'account-ledger': { label: 'Account Ledger', icon: Landmark, permission: PERMISSIONS.VIEW_ACCOUNTING },
+  'financial-reports': { label: 'Financial Reports', icon: FileBarChart, permission: PERMISSIONS.VIEW_FINANCIAL_REPORTS },
+  'reports': { label: 'Reports', icon: BarChart3, permission: PERMISSIONS.VIEW_SALES_REPORT },
+  'deep-report': { label: 'Deep Report', icon: History, permission: PERMISSIONS.VIEW_DEEP_REPORT },
+  'online-store-settings': { label: 'Store Settings', icon: Store, permission: PERMISSIONS.VIEW_ONLINE_STORE },
+  'online-orders': { label: 'Online Orders', icon: ShoppingBag, permission: PERMISSIONS.VIEW_ONLINE_ORDERS },
+  'settings': { label: 'Settings', icon: Settings, permission: PERMISSIONS.VIEW_SETTINGS },
+  'sidebar-settings': { label: 'Sidebar Config', icon: Menu, permission: PERMISSIONS.VIEW_SETTINGS },
+}
 
 interface NavItem {
   path: string
@@ -151,18 +191,54 @@ const navSections: NavSection[] = [
   },
 ]
 
+interface SidebarConfig {
+  sections: { id?: number; name: string; pages: string[] }[]
+}
+
 export default function Layout() {
   const { user, logout } = useAuth()
   const { hasPermission, isCompanyAdmin } = usePermissions()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [customConfig, setCustomConfig] = useState<SidebarConfig | null>(null)
   const location = useLocation()
   const navigate = useNavigate()
+
+  // Fetch custom sidebar configuration
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const response = await api.get('/sidebar/config')
+        if (response.data.sections && response.data.sections.length > 0) {
+          setCustomConfig(response.data)
+        }
+      } catch (error) {
+        // No custom config, use default
+        console.log('Using default sidebar config')
+      }
+    }
+    fetchConfig()
+  }, [])
 
   const handleLogout = () => {
     logout()
     window.location.href = (import.meta.env.BASE_URL || '/') + 'login'
   }
+
+  // Build dynamic sections from custom config or use default
+  const dynamicSections: NavSection[] = customConfig 
+    ? customConfig.sections.map(section => ({
+        title: section.name,
+        items: section.pages
+          .filter(pageId => PAGE_META[pageId]) // Only include valid pages
+          .map(pageId => ({
+            path: pageId === 'dashboard' ? '/' : `/${pageId}`,
+            label: PAGE_META[pageId].label,
+            icon: PAGE_META[pageId].icon,
+            permission: PAGE_META[pageId].permission
+          }))
+      }))
+    : navSections
 
   // Check if current page is allowed based on pagePermissions
   useEffect(() => {
@@ -179,7 +255,7 @@ export default function Layout() {
   }, [location.pathname, user?.pagePermissions, navigate])
 
   // Filter nav sections and items based on permissions, page permissions, and search
-  const visibleSections = navSections.map(section => ({
+  const visibleSections = dynamicSections.map(section => ({
     ...section,
     items: section.items.filter(item => {
       // Permission check (role-based)
