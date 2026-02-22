@@ -7,6 +7,10 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Microsoft.Win32;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Management;
+using System.Security.Cryptography;
 
 namespace CatalystInstaller;
 
@@ -41,6 +45,14 @@ public class InstallerForm : Form
     private string postgresPath = "";
     private bool postgresInstalled = false;
     private string defaultDbName = "catalyst_offline";
+    
+    // License validation
+    private TextBox txtLicenseKey = null!;
+    private Label lblLicenseStatus = null!;
+    private Button btnValidateLicense = null!;
+    private bool licenseValidated = false;
+    private LicenseInfo? activatedLicense = null;
+    private const string API_BASE_URL = "https://backend-production-c924.up.railway.app/api";
     
     public InstallerForm()
     {
@@ -203,27 +215,227 @@ public class InstallerForm : Form
     
     private void CreateSteps()
     {
-        stepPanels = new Panel[5];
+        stepPanels = new Panel[6];
         
         // Step 1: Welcome
         stepPanels[0] = CreateWelcomeStep();
         
-        // Step 2: PostgreSQL Check
-        stepPanels[1] = CreatePostgresStep();
+        // Step 2: License Validation (NEW)
+        stepPanels[1] = CreateLicenseStep();
         
-        // Step 3: Database Config
-        stepPanels[2] = CreateDatabaseStep();
+        // Step 3: PostgreSQL Check
+        stepPanels[2] = CreatePostgresStep();
         
-        // Step 4: Installation
-        stepPanels[3] = CreateInstallStep();
+        // Step 4: Database Config
+        stepPanels[3] = CreateDatabaseStep();
         
-        // Step 5: Complete
-        stepPanels[4] = CreateCompleteStep();
+        // Step 5: Installation
+        stepPanels[4] = CreateInstallStep();
+        
+        // Step 6: Complete
+        stepPanels[5] = CreateCompleteStep();
         
         foreach (var panel in stepPanels)
         {
             panel.Visible = false;
             contentPanel.Controls.Add(panel);
+        }
+    }
+    
+    private Panel CreateLicenseStep()
+    {
+        var panel = new Panel { Location = new Point(25, 20), Size = new Size(600, 330) };
+        
+        panel.Controls.Add(new Label
+        {
+            Text = "License Activation",
+            Font = new Font("Segoe UI", 16, FontStyle.Bold),
+            Location = new Point(0, 0),
+            AutoSize = true
+        });
+        
+        panel.Controls.Add(new Label
+        {
+            Text = @"Enter your license key to activate Catalyst offline.
+
+Your license key was provided by your administrator from the 
+online admin portal. Internet connection is required for activation.",
+            Font = new Font("Segoe UI", 10),
+            Location = new Point(0, 40),
+            Size = new Size(580, 70)
+        });
+        
+        panel.Controls.Add(new Label
+        {
+            Text = "License Key:",
+            Font = new Font("Segoe UI", 10, FontStyle.Bold),
+            Location = new Point(0, 120),
+            AutoSize = true
+        });
+        
+        txtLicenseKey = new TextBox
+        {
+            Location = new Point(0, 145),
+            Size = new Size(400, 35),
+            Font = new Font("Consolas", 14),
+            CharacterCasing = CharacterCasing.Upper
+        };
+        panel.Controls.Add(txtLicenseKey);
+        
+        btnValidateLicense = new Button
+        {
+            Text = "Activate License",
+            Location = new Point(410, 143),
+            Size = new Size(150, 35),
+            BackColor = Color.FromArgb(41, 128, 185),
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
+            Font = new Font("Segoe UI", 10, FontStyle.Bold)
+        };
+        btnValidateLicense.Click += async (s, e) => await ValidateAndActivateLicense();
+        panel.Controls.Add(btnValidateLicense);
+        
+        lblLicenseStatus = new Label
+        {
+            Name = "licenseStatus",
+            Font = new Font("Segoe UI", 10),
+            Location = new Point(0, 190),
+            Size = new Size(580, 120),
+            Text = ""
+        };
+        panel.Controls.Add(lblLicenseStatus);
+        
+        return panel;
+    }
+    
+    private async Task ValidateAndActivateLicense()
+    {
+        var licenseKey = txtLicenseKey.Text.Trim();
+        if (string.IsNullOrEmpty(licenseKey))
+        {
+            lblLicenseStatus.ForeColor = Color.FromArgb(192, 57, 43);
+            lblLicenseStatus.Text = "Please enter a license key.";
+            return;
+        }
+        
+        btnValidateLicense.Enabled = false;
+        btnValidateLicense.Text = "Validating...";
+        lblLicenseStatus.ForeColor = Color.Gray;
+        lblLicenseStatus.Text = "Connecting to license server...";
+        
+        try
+        {
+            var machineFingerprint = GetMachineFingerprint();
+            var machineName = Environment.MachineName;
+            var osInfo = Environment.OSVersion.ToString();
+            
+            using var client = new HttpClient();
+            client.Timeout = TimeSpan.FromSeconds(30);
+            
+            var requestBody = new
+            {
+                licenseKey = licenseKey,
+                machineFingerprint = machineFingerprint,
+                machineName = machineName,
+                osInfo = osInfo
+            };
+            
+            var json = JsonSerializer.Serialize(requestBody);
+            var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+            
+            var response = await client.PostAsync($"{API_BASE_URL}/licenses/activate", content);
+            var responseBody = await response.Content.ReadAsStringAsync();
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                activatedLicense = JsonSerializer.Deserialize<LicenseInfo>(responseBody, options);
+                
+                if (activatedLicense != null && activatedLicense.Success)
+                {
+                    licenseValidated = true;
+                    lblLicenseStatus.ForeColor = Color.FromArgb(39, 174, 96);
+                    lblLicenseStatus.Text = $@"✓ License activated successfully!
+
+Company: {activatedLicense.Company?.Name}
+Username: {activatedLicense.Company?.Username}
+Expires: {activatedLicense.ExpiresAt:MMM dd, yyyy}
+Days remaining: {activatedLicense.DaysUntilExpiry}
+
+Click 'Next' to continue with installation.";
+                    nextButton.Enabled = true;
+                }
+                else
+                {
+                    lblLicenseStatus.ForeColor = Color.FromArgb(192, 57, 43);
+                    lblLicenseStatus.Text = "License activation failed. Please check your license key.";
+                }
+            }
+            else
+            {
+                var errorResponse = JsonSerializer.Deserialize<JsonElement>(responseBody);
+                var errorMessage = errorResponse.TryGetProperty("error", out var err) ? err.GetString() : "Unknown error";
+                
+                lblLicenseStatus.ForeColor = Color.FromArgb(192, 57, 43);
+                lblLicenseStatus.Text = $"✗ Activation failed: {errorMessage}";
+            }
+        }
+        catch (HttpRequestException)
+        {
+            lblLicenseStatus.ForeColor = Color.FromArgb(192, 57, 43);
+            lblLicenseStatus.Text = @"✗ Cannot connect to license server.
+
+Please check your internet connection and try again.
+The laptop must be online for initial license activation.";
+        }
+        catch (Exception ex)
+        {
+            lblLicenseStatus.ForeColor = Color.FromArgb(192, 57, 43);
+            lblLicenseStatus.Text = $"✗ Error: {ex.Message}";
+        }
+        finally
+        {
+            btnValidateLicense.Enabled = true;
+            btnValidateLicense.Text = "Activate License";
+        }
+    }
+    
+    private string GetMachineFingerprint()
+    {
+        try
+        {
+            var cpuId = "";
+            var diskSerial = "";
+            
+            // Get CPU ID
+            using (var searcher = new ManagementObjectSearcher("SELECT ProcessorId FROM Win32_Processor"))
+            {
+                foreach (var item in searcher.Get())
+                {
+                    cpuId = item["ProcessorId"]?.ToString() ?? "";
+                    break;
+                }
+            }
+            
+            // Get disk serial
+            using (var searcher = new ManagementObjectSearcher("SELECT SerialNumber FROM Win32_DiskDrive"))
+            {
+                foreach (var item in searcher.Get())
+                {
+                    diskSerial = item["SerialNumber"]?.ToString() ?? "";
+                    break;
+                }
+            }
+            
+            var combined = $"{cpuId}-{diskSerial}-{Environment.MachineName}";
+            using var sha = SHA256.Create();
+            var hash = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(combined));
+            return Convert.ToBase64String(hash).Substring(0, 32);
+        }
+        catch
+        {
+            // Fallback to machine name if WMI fails
+            return Environment.MachineName + "-" + Environment.UserName;
         }
     }
     
@@ -247,8 +459,11 @@ The following components will be installed:
 
   ✓ Backend API Server (runs as background service)
   ✓ Company Portal (desktop shortcut)
-  ✓ Admin Portal (desktop shortcut)
   ✓ PostgreSQL Database (if not installed)
+
+Requirements:
+  • Internet connection (for license activation only)
+  • License key (from your administrator)
 
 Installation folder:
 " + installPath + @"
@@ -317,8 +532,8 @@ Click 'Next' to continue.",
     
     private void UpdatePostgresStatus()
     {
-        var statusLabel = stepPanels[1].Controls["postgresStatus"] as Label;
-        var downloadBtn = stepPanels[1].Controls["downloadBtn"] as Button;
+        var statusLabel = stepPanels[2].Controls["postgresStatus"] as Label;
+        var downloadBtn = stepPanels[2].Controls["downloadBtn"] as Button;
         
         if (statusLabel == null || downloadBtn == null) return;
         
@@ -588,17 +803,20 @@ Options:
         {
             Text = @"Catalyst has been successfully installed!
 
-Desktop shortcuts created:
+Desktop shortcut created:
   • Catalyst Company Portal
-  • Catalyst Admin Portal
 
 The Backend API service will start automatically when you 
-launch either portal.
+launch the portal.
 
 To start using Catalyst:
   1. Double-click 'Catalyst Company Portal' on your desktop
-  2. Login with your credentials
-  3. Start managing your business offline!",
+  2. Login with your company credentials
+  3. Start managing your business offline!
+
+Your license has been saved locally. The system will work 
+offline and periodically check for subscription updates 
+when internet is available.",
             Font = new Font("Segoe UI", 11),
             Location = new Point(0, 45),
             Size = new Size(580, 220)
@@ -622,28 +840,32 @@ To start using Catalyst:
         for (int i = 0; i < stepPanels.Length; i++)
             stepPanels[i].Visible = (i == currentStep);
         
-        backButton.Enabled = currentStep > 0 && currentStep < 3;
+        backButton.Enabled = currentStep > 0 && currentStep < 4;
         
         switch (currentStep)
         {
-            case 0: 
+            case 0: // Welcome
                 nextButton.Text = "Next >"; 
                 nextButton.Enabled = true;
                 break;
-            case 1: 
+            case 1: // License
+                nextButton.Text = "Next >"; 
+                nextButton.Enabled = licenseValidated;
+                break;
+            case 2: // PostgreSQL
                 nextButton.Text = "Next >"; 
                 nextButton.Enabled = postgresInstalled;
                 UpdatePostgresStatus();
                 break;
-            case 2: 
+            case 3: // Database Config
                 nextButton.Text = "Install";
                 nextButton.Enabled = true;
                 break;
-            case 3: 
+            case 4: // Installation
                 nextButton.Text = "Installing..."; 
                 nextButton.Enabled = false; 
                 break;
-            case 4: 
+            case 5: // Complete
                 nextButton.Text = "Finish"; 
                 nextButton.Enabled = true; 
                 backButton.Enabled = false; 
@@ -659,25 +881,34 @@ To start using Catalyst:
     {
         switch (currentStep)
         {
-            case 0:
+            case 0: // Welcome -> License
                 currentStep = 1;
                 ShowStep();
                 break;
-            case 1:
-                if (!postgresInstalled)
+            case 1: // License -> PostgreSQL
+                if (!licenseValidated)
                 {
-                    MessageBox.Show("Please install PostgreSQL first.", "PostgreSQL Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show("Please activate your license first.", "License Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
                 currentStep = 2;
                 ShowStep();
                 break;
-            case 2:
+            case 2: // PostgreSQL -> Database Config
+                if (!postgresInstalled)
+                {
+                    MessageBox.Show("Please install PostgreSQL first.", "PostgreSQL Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
                 currentStep = 3;
+                ShowStep();
+                break;
+            case 3: // Database Config -> Installation
+                currentStep = 4;
                 ShowStep();
                 await RunInstallation();
                 break;
-            case 4:
+            case 5: // Complete -> Close
                 if (chkStartNow.Checked)
                 {
                     LaunchCompanyPortal();
@@ -745,6 +976,12 @@ To start using Catalyst:
             CreateDesktopShortcuts();
             progressBar.Value = 95;
             
+            // Step 7: Save license info locally
+            Log("Saving license information...");
+            progressLabel.Text = "Saving license...";
+            await SaveLicenseLocally();
+            progressBar.Value = 98;
+            
             Log("");
             Log("========================================");
             Log("Installation completed successfully!");
@@ -753,7 +990,7 @@ To start using Catalyst:
             progressLabel.Text = "Installation complete!";
             
             await Task.Delay(1500);
-            currentStep = 4;
+            currentStep = 5;
             ShowStep();
         }
         catch (Exception ex)
@@ -896,7 +1133,7 @@ VITE_API_URL=/api
     
     private void CreateLaunchers()
     {
-        // Create Company Portal launcher
+        // Create Company Portal launcher only (no Admin Portal for offline version)
         var companyLauncher = @"@echo off
 set ROOT=%~dp0
 
@@ -917,28 +1154,7 @@ start http://localhost:3000
 ";
         System.IO.File.WriteAllText(Path.Combine(installPath, "Launch-Company.bat"), companyLauncher);
         
-        // Create Admin Portal launcher
-        var adminLauncher = @"@echo off
-set ROOT=%~dp0
-
-:: Start backend if not already running
-netstat -ano | findstr "":5227"" >nul
-if errorlevel 1 (
-    echo Starting Backend...
-    start ""Catalyst Backend"" /min cmd /k ""cd /d %ROOT%backend && set ASPNETCORE_ENVIRONMENT=Local && dotnet run""
-    echo Waiting for backend to start...
-    timeout /t 8 /nobreak >nul
-)
-
-:: Start Admin Portal
-echo Starting Admin Portal...
-start ""Catalyst Admin"" cmd /k ""cd /d %ROOT%admin && npx vite --port 5176""
-timeout /t 3 /nobreak >nul
-start http://localhost:5176
-";
-        System.IO.File.WriteAllText(Path.Combine(installPath, "Launch-Admin.bat"), adminLauncher);
-        
-        Log("Launchers created.");
+        Log("Launcher created.");
     }
     
     private void CreateDesktopShortcuts()
@@ -947,7 +1163,7 @@ start http://localhost:5176
         {
             var desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
             
-            // Use PowerShell to create shortcuts
+            // Use PowerShell to create shortcut (Company Portal only)
             CreateShortcutWithPowerShell(
                 Path.Combine(desktopPath, "Catalyst Company Portal.lnk"),
                 Path.Combine(installPath, "Launch-Company.bat"),
@@ -955,14 +1171,6 @@ start http://localhost:5176
                 "Launch Catalyst Company Portal"
             );
             Log("Company Portal shortcut created.");
-            
-            CreateShortcutWithPowerShell(
-                Path.Combine(desktopPath, "Catalyst Admin Portal.lnk"),
-                Path.Combine(installPath, "Launch-Admin.bat"),
-                installPath,
-                "Launch Catalyst Admin Portal"
-            );
-            Log("Admin Portal shortcut created.");
         }
         catch (Exception ex)
         {
@@ -999,18 +1207,13 @@ $Shortcut.Save()
     {
         var desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
         
-        // Create simple batch shortcuts
+        // Create simple batch shortcut (Company Portal only)
         System.IO.File.Copy(
             Path.Combine(installPath, "Launch-Company.bat"),
             Path.Combine(desktopPath, "Catalyst Company Portal.bat"),
             true);
         
-        System.IO.File.Copy(
-            Path.Combine(installPath, "Launch-Admin.bat"),
-            Path.Combine(desktopPath, "Catalyst Admin Portal.bat"),
-            true);
-        
-        Log("Desktop shortcuts created (batch files).");
+        Log("Desktop shortcut created (batch file).");
     }
     
     private void LaunchCompanyPortal()
@@ -1107,4 +1310,102 @@ $Shortcut.Save()
             Log($"Launch settings warning: {ex.Message}");
         }
     }
+    
+    private async Task SaveLicenseLocally()
+    {
+        if (activatedLicense == null || activatedLicense.Company == null) return;
+        
+        try
+        {
+            var connStr = $"Host={txtHost.Text};Port={txtPort.Text};Username={txtUser.Text};Password={txtPass.Text};Database={txtDbName.Text}";
+            using var conn = new Npgsql.NpgsqlConnection(connStr);
+            await conn.OpenAsync();
+            
+            // Create licenses table if not exists
+            using var createTable = conn.CreateCommand();
+            createTable.CommandText = @"
+                CREATE TABLE IF NOT EXISTS local_licenses (
+                    id SERIAL PRIMARY KEY,
+                    license_key VARCHAR(100) NOT NULL,
+                    company_id INT NOT NULL,
+                    company_name VARCHAR(255),
+                    company_username VARCHAR(100),
+                    company_password_hash TEXT,
+                    expires_at TIMESTAMP,
+                    grace_period_days INT DEFAULT 7,
+                    machine_fingerprint VARCHAR(500),
+                    activated_at TIMESTAMP DEFAULT NOW(),
+                    last_check_in TIMESTAMP,
+                    features TEXT
+                )";
+            await createTable.ExecuteNonQueryAsync();
+            
+            // Insert license info
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                INSERT INTO local_licenses (license_key, company_id, company_name, company_username, company_password_hash, expires_at, grace_period_days, machine_fingerprint, features)
+                VALUES (@key, @companyId, @name, @username, @passwordHash, @expires, @grace, @fingerprint, @features)
+                ON CONFLICT DO NOTHING";
+            cmd.Parameters.AddWithValue("key", activatedLicense.LicenseKey);
+            cmd.Parameters.AddWithValue("companyId", activatedLicense.Company.Id);
+            cmd.Parameters.AddWithValue("name", activatedLicense.Company.Name);
+            cmd.Parameters.AddWithValue("username", activatedLicense.Company.Username);
+            cmd.Parameters.AddWithValue("passwordHash", activatedLicense.Company.PasswordHash);
+            cmd.Parameters.AddWithValue("expires", activatedLicense.ExpiresAt);
+            cmd.Parameters.AddWithValue("grace", activatedLicense.GracePeriodDays);
+            cmd.Parameters.AddWithValue("fingerprint", GetMachineFingerprint());
+            cmd.Parameters.AddWithValue("features", activatedLicense.Features ?? "");
+            await cmd.ExecuteNonQueryAsync();
+            
+            // Also create the company in the companies table
+            using var companyCmd = conn.CreateCommand();
+            companyCmd.CommandText = @"
+                INSERT INTO companies (id, name, username, password_hash, status, created_at, updated_at, currency_symbol)
+                VALUES (@id, @name, @username, @passwordHash, 'active', NOW(), NOW(), @currency)
+                ON CONFLICT (id) DO UPDATE SET 
+                    name = EXCLUDED.name,
+                    username = EXCLUDED.username,
+                    password_hash = EXCLUDED.password_hash,
+                    updated_at = NOW()";
+            companyCmd.Parameters.AddWithValue("id", activatedLicense.Company.Id);
+            companyCmd.Parameters.AddWithValue("name", activatedLicense.Company.Name);
+            companyCmd.Parameters.AddWithValue("username", activatedLicense.Company.Username);
+            companyCmd.Parameters.AddWithValue("passwordHash", activatedLicense.Company.PasswordHash);
+            companyCmd.Parameters.AddWithValue("currency", activatedLicense.Company.CurrencySymbol ?? "$");
+            await companyCmd.ExecuteNonQueryAsync();
+            
+            Log($"License saved for company: {activatedLicense.Company.Name}");
+            Log($"Company login: {activatedLicense.Company.Username}");
+        }
+        catch (Exception ex)
+        {
+            Log($"License save warning: {ex.Message}");
+        }
+    }
+}
+
+// License response classes
+public class LicenseInfo
+{
+    public bool Success { get; set; }
+    public int ActivationId { get; set; }
+    public string LicenseKey { get; set; } = "";
+    public string LicenseType { get; set; } = "";
+    public DateTime ExpiresAt { get; set; }
+    public int DaysUntilExpiry { get; set; }
+    public int GracePeriodDays { get; set; }
+    public string? Features { get; set; }
+    public CompanyInfo? Company { get; set; }
+}
+
+public class CompanyInfo
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = "";
+    public string Username { get; set; } = "";
+    public string PasswordHash { get; set; } = "";
+    public string? Phone { get; set; }
+    public string? Address { get; set; }
+    public string? LogoUrl { get; set; }
+    public string CurrencySymbol { get; set; } = "$";
 }
