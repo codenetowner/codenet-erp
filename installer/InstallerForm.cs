@@ -1347,6 +1347,11 @@ VITE_API_URL=/api
                 var error = await process.StandardError.ReadToEndAsync();
                 Log($"npm install warning: {error}");
             }
+            
+            // Create .env file for local API URL
+            var envFile = Path.Combine(companyPath, ".env");
+            System.IO.File.WriteAllText(envFile, "VITE_API_URL=http://localhost:5227/api");
+            Log("Frontend environment configured for local backend.");
         }
         catch (Exception ex)
         {
@@ -1356,10 +1361,15 @@ VITE_API_URL=/api
     
     private void CreateLaunchers()
     {
-        // Create Company Portal launcher (completely hidden, no taskbar)
+        // Create Company Portal launcher (starts backend + frontend, completely hidden)
         var companyLauncher = $@"Set WshShell = CreateObject(""WScript.Shell"")
+' Start Backend first
+WshShell.Run ""cmd /c cd /d {installPath}\backend && set ASPNETCORE_ENVIRONMENT=Local && dotnet run"", 0, False
+WScript.Sleep 8000
+' Start Frontend
 WshShell.Run ""cmd /c cd /d {installPath}\company && npm run dev"", 0, False
-WScript.Sleep 6000
+WScript.Sleep 5000
+' Open browser
 WshShell.Run ""cmd /c start """""""" http://localhost:3000"", 0, False
 Set WshShell = Nothing
 ";
