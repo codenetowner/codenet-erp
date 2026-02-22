@@ -90,6 +90,7 @@ const AVAILABLE_PAGES = [
   { id: 'online-store-settings', label: 'Store Settings', section: 'Online Store' },
   { id: 'online-orders', label: 'Online Orders', section: 'Online Store' },
   { id: 'settings', label: 'Settings', section: 'Settings' },
+  { id: 'sidebar-settings', label: 'Sidebar Config', section: 'Settings' },
 ]
 
 const initialForm: CompanyForm = {

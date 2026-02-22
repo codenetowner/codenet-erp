@@ -42,6 +42,7 @@ import ChartOfAccounts from './pages/ChartOfAccounts'
 import JournalEntries from './pages/JournalEntries'
 import FinancialReports from './pages/FinancialReports'
 import AccountLedger from './pages/AccountLedger'
+import SidebarSettings from './pages/SidebarSettings'
 
 function App() {
   const { isAuthenticated, isLoading } = useAuth()
@@ -84,6 +85,7 @@ function App() {
           <Route path="categories" element={<ProtectedRoute permission={PERMISSIONS.VIEW_CATEGORIES}><Categories /></ProtectedRoute>} />
           <Route path="units" element={<ProtectedRoute permission={PERMISSIONS.VIEW_UNITS}><Units /></ProtectedRoute>} />
           <Route path="settings" element={<ProtectedRoute permission={PERMISSIONS.VIEW_SETTINGS}><Settings /></ProtectedRoute>} />
+          <Route path="sidebar-settings" element={<ProtectedRoute permission={PERMISSIONS.VIEW_SETTINGS}><SidebarSettings /></ProtectedRoute>} />
           <Route path="roles" element={<ProtectedRoute permission={PERMISSIONS.VIEW_ROLES}><Roles /></ProtectedRoute>} />
           <Route path="attendance" element={<ProtectedRoute permission={PERMISSIONS.VIEW_ATTENDANCE}><Attendance /></ProtectedRoute>} />
           <Route path="raw-materials" element={<ProtectedRoute permission={PERMISSIONS.VIEW_PRODUCTS}><RawMaterials /></ProtectedRoute>} />

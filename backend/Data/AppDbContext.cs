@@ -95,6 +95,10 @@ public class AppDbContext : DbContext
     public DbSet<License> Licenses { get; set; }
     public DbSet<LicenseActivation> LicenseActivations { get; set; }
 
+    // Sidebar Customization
+    public DbSet<SidebarSection> SidebarSections { get; set; }
+    public DbSet<SidebarPageAssignment> SidebarPageAssignments { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

@@ -179,6 +179,29 @@ using (var scope = app.Services.CreateScope())
                 ALTER TABLE companies ADD COLUMN IF NOT EXISTS page_permissions TEXT;
             ");
             Console.WriteLine("Page permissions column added/verified");
+
+            // Create sidebar_sections table
+            context.Database.ExecuteSqlRaw(@"
+                CREATE TABLE IF NOT EXISTS sidebar_sections (
+                    id SERIAL PRIMARY KEY,
+                    company_id INT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+                    name VARCHAR(100) NOT NULL,
+                    sort_order INT DEFAULT 0,
+                    is_active BOOLEAN DEFAULT true,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                );
+                
+                CREATE TABLE IF NOT EXISTS sidebar_page_assignments (
+                    id SERIAL PRIMARY KEY,
+                    company_id INT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+                    section_id INT NOT NULL REFERENCES sidebar_sections(id) ON DELETE CASCADE,
+                    page_id VARCHAR(100) NOT NULL,
+                    sort_order INT DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT NOW()
+                );
+            ");
+            Console.WriteLine("Sidebar customization tables created/verified");
         }
         catch (Exception migrationEx)
         {

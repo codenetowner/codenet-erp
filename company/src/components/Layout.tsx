@@ -146,6 +146,7 @@ const navSections: NavSection[] = [
     title: 'Settings',
     items: [
       { path: '/settings', label: 'Settings', icon: Settings, permission: PERMISSIONS.VIEW_SETTINGS },
+      { path: '/sidebar-settings', label: 'Sidebar Config', icon: Settings, permission: PERMISSIONS.VIEW_SETTINGS },
     ]
   },
 ]
