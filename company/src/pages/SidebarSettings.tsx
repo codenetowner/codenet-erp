@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Plus, Trash2, GripVertical, ChevronDown, ChevronUp, Save } from 'lucide-react'
 import api from '../lib/api'
+import { useAuth } from '../hooks/useAuth'
 
 interface SidebarSection {
   id?: number
@@ -9,7 +10,7 @@ interface SidebarSection {
 }
 
 // All available pages in the system
-const AVAILABLE_PAGES = [
+const ALL_PAGES = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'employees', label: 'Employees' },
   { id: 'attendance', label: 'Attendance' },
@@ -48,11 +49,21 @@ const AVAILABLE_PAGES = [
 ]
 
 export default function SidebarSettings() {
+  const { user } = useAuth()
   const [sections, setSections] = useState<SidebarSection[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [expandedSection, setExpandedSection] = useState<number | null>(null)
   const [newSectionName, setNewSectionName] = useState('')
+
+  // Filter available pages based on company's pagePermissions from admin
+  // If no pagePermissions set, show all pages
+  const AVAILABLE_PAGES = useMemo(() => {
+    if (user?.pagePermissions && user.pagePermissions.length > 0) {
+      return ALL_PAGES.filter(page => user.pagePermissions!.includes(page.id))
+    }
+    return ALL_PAGES
+  }, [user?.pagePermissions])
 
   useEffect(() => {
     loadConfig()
@@ -62,25 +73,29 @@ export default function SidebarSettings() {
     try {
       const response = await api.get('/sidebar/config')
       if (response.data.sections && response.data.sections.length > 0) {
-        setSections(response.data.sections)
+        // Filter saved sections to only include allowed pages
+        const allowedPages = user?.pagePermissions && user.pagePermissions.length > 0 
+          ? user.pagePermissions 
+          : ALL_PAGES.map(p => p.id)
+        const filteredSections = response.data.sections.map((section: SidebarSection) => ({
+          ...section,
+          pages: section.pages.filter((pageId: string) => allowedPages.includes(pageId))
+        })).filter((section: SidebarSection) => section.pages.length > 0)
+        setSections(filteredSections.length > 0 ? filteredSections : [{ name: 'Pages', pages: allowedPages }])
       } else {
-        // Default sections if none exist
-        setSections([
-          { name: 'Main', pages: ['dashboard'] },
-          { name: 'Team', pages: ['employees', 'attendance', 'roles'] },
-          { name: 'Operations', pages: ['vans', 'salesmen', 'warehouses'] },
-          { name: 'Inventory', pages: ['products', 'categories', 'units', 'stock-adjustment', 'valuation', 'inventory-settings'] },
-          { name: 'Production', pages: ['raw-materials', 'raw-material-purchases', 'production-orders'] },
-          { name: 'Sales', pages: ['customers', 'leads', 'tasks', 'quotes', 'direct-sales'] },
-          { name: 'Finance', pages: ['cash', 'suppliers', 'expenses', 'currencies'] },
-          { name: 'Accounting', pages: ['chart-of-accounts', 'journal-entries', 'account-ledger', 'financial-reports'] },
-          { name: 'Reports', pages: ['reports', 'deep-report'] },
-          { name: 'Online Store', pages: ['online-store-settings', 'online-orders'] },
-          { name: 'Settings', pages: ['settings'] },
-        ])
+        // Default: put all allowed pages in one section
+        const allowedPages = user?.pagePermissions && user.pagePermissions.length > 0 
+          ? user.pagePermissions 
+          : ALL_PAGES.map(p => p.id)
+        setSections([{ name: 'Pages', pages: allowedPages }])
       }
     } catch (error) {
       console.error('Failed to load sidebar config:', error)
+      // Fallback: put all allowed pages in one section
+      const allowedPages = user?.pagePermissions && user.pagePermissions.length > 0 
+        ? user.pagePermissions 
+        : ALL_PAGES.map(p => p.id)
+      setSections([{ name: 'Pages', pages: allowedPages }])
     } finally {
       setLoading(false)
     }
