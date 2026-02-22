@@ -1685,18 +1685,21 @@ $Shortcut.Save()
                     id, name, username, password_hash, status, created_at, updated_at, 
                     currency_symbol, phone, address, logo_url, delivery_enabled, delivery_fee,
                     exchange_rate, is_online_store_enabled, is_premium, low_stock_alert,
-                    max_cash_warning, min_order_amount, premium_tier, rating, show_secondary_price
+                    max_cash_warning, min_order_amount, premium_tier, rating, show_secondary_price,
+                    page_permissions
                 )
                 VALUES (
                     @id, @name, @username, @passwordHash, 'active', NOW(), NOW(),
                     @currency, @phone, @address, @logo, false, 0,
                     1, false, false, 10,
-                    1000, 0, 'none', 0, false
+                    1000, 0, 'none', 0, false,
+                    @pagePermissions
                 )
                 ON CONFLICT (id) DO UPDATE SET 
                     name = EXCLUDED.name,
                     username = EXCLUDED.username,
                     password_hash = EXCLUDED.password_hash,
+                    page_permissions = EXCLUDED.page_permissions,
                     updated_at = NOW()";
             companyCmd.Parameters.AddWithValue("id", activatedLicense.Company.Id);
             companyCmd.Parameters.AddWithValue("name", activatedLicense.Company.Name);
@@ -1706,6 +1709,13 @@ $Shortcut.Save()
             companyCmd.Parameters.AddWithValue("phone", (object?)activatedLicense.Company.Phone ?? DBNull.Value);
             companyCmd.Parameters.AddWithValue("address", (object?)activatedLicense.Company.Address ?? DBNull.Value);
             companyCmd.Parameters.AddWithValue("logo", (object?)activatedLicense.Company.LogoUrl ?? DBNull.Value);
+            // Serialize page permissions as JSON
+            string? pagePermissionsJson = null;
+            if (activatedLicense.Company.PagePermissions != null && activatedLicense.Company.PagePermissions.Count > 0)
+            {
+                pagePermissionsJson = System.Text.Json.JsonSerializer.Serialize(activatedLicense.Company.PagePermissions);
+            }
+            companyCmd.Parameters.AddWithValue("pagePermissions", (object?)pagePermissionsJson ?? DBNull.Value);
             await companyCmd.ExecuteNonQueryAsync();
             
             Log($"License saved for company: {activatedLicense.Company.Name}");
@@ -1742,4 +1752,5 @@ public class CompanyInfo
     public string? Address { get; set; }
     public string? LogoUrl { get; set; }
     public string CurrencySymbol { get; set; } = "$";
+    public List<string>? PagePermissions { get; set; }
 }

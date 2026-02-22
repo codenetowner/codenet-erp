@@ -41,31 +41,54 @@ public class CompaniesController : ControllerBase
                 c.Username.Contains(search) || 
                 (c.Phone != null && c.Phone.Contains(search)));
 
-        var companies = await query
+        var rawCompanies = await query
             .OrderByDescending(c => c.CreatedAt)
-            .Select(c => new CompanyListDto
+            .Select(c => new 
             {
-                Id = c.Id,
-                Name = c.Name,
-                Username = c.Username,
-                Phone = c.Phone,
-                Address = c.Address,
-                Status = c.Status,
-                PlanId = c.PlanId,
-                LogoUrl = c.LogoUrl,
+                c.Id,
+                c.Name,
+                c.Username,
+                c.Phone,
+                c.Address,
+                c.Status,
+                c.PlanId,
+                c.LogoUrl,
                 PlanName = c.Plan != null ? c.Plan.Name : null,
                 PlanPrice = c.Plan != null ? c.Plan.Price : null,
                 PlanDurationDays = c.Plan != null ? c.Plan.DurationDays : null,
-                PlanExpiryDate = c.PlanExpiryDate,
-                CreatedAt = c.CreatedAt,
-                StoreCategoryId = c.StoreCategoryId,
+                c.PlanExpiryDate,
+                c.CreatedAt,
+                c.StoreCategoryId,
                 StoreCategoryName = c.StoreCategory != null ? c.StoreCategory.Name : null,
-                IsOnlineStoreEnabled = c.IsOnlineStoreEnabled,
-                IsPremium = c.IsPremium,
-                PremiumTier = c.PremiumTier,
-                PagePermissions = string.IsNullOrEmpty(c.PagePermissions) ? null : JsonSerializer.Deserialize<List<string>>(c.PagePermissions)
+                c.IsOnlineStoreEnabled,
+                c.IsPremium,
+                c.PremiumTier,
+                c.PagePermissions
             })
             .ToListAsync();
+
+        var companies = rawCompanies.Select(c => new CompanyListDto
+        {
+            Id = c.Id,
+            Name = c.Name,
+            Username = c.Username,
+            Phone = c.Phone,
+            Address = c.Address,
+            Status = c.Status,
+            PlanId = c.PlanId,
+            LogoUrl = c.LogoUrl,
+            PlanName = c.PlanName,
+            PlanPrice = c.PlanPrice,
+            PlanDurationDays = c.PlanDurationDays,
+            PlanExpiryDate = c.PlanExpiryDate,
+            CreatedAt = c.CreatedAt,
+            StoreCategoryId = c.StoreCategoryId,
+            StoreCategoryName = c.StoreCategoryName,
+            IsOnlineStoreEnabled = c.IsOnlineStoreEnabled,
+            IsPremium = c.IsPremium,
+            PremiumTier = c.PremiumTier,
+            PagePermissions = string.IsNullOrEmpty(c.PagePermissions) ? null : JsonSerializer.Deserialize<List<string>>(c.PagePermissions)
+        }).ToList();
 
         return Ok(companies);
     }
