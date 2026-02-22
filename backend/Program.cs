@@ -254,6 +254,24 @@ using (var scope = app.Services.CreateScope())
                 Console.WriteLine("===========================================");
             }
         }
+        
+        // Ensure all companies have a Main Warehouse
+        try
+        {
+            context.Database.ExecuteSqlRaw(@"
+                INSERT INTO warehouses (company_id, name, code, is_active, created_at, updated_at)
+                SELECT c.id, 'Main Warehouse', 'MAIN', true, NOW(), NOW()
+                FROM companies c
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM warehouses w WHERE w.company_id = c.id
+                )
+            ");
+            Console.WriteLine("Ensured all companies have a Main Warehouse.");
+        }
+        catch (Exception warehouseEx)
+        {
+            Console.WriteLine($"Warehouse seeding info: {warehouseEx.Message}");
+        }
     }
     catch (Exception ex)
     {
