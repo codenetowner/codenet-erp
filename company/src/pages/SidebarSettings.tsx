@@ -55,6 +55,7 @@ export default function SidebarSettings() {
   const [saving, setSaving] = useState(false)
   const [expandedSection, setExpandedSection] = useState<number | null>(null)
   const [newSectionName, setNewSectionName] = useState('')
+  const [draggedPage, setDraggedPage] = useState<{ sectionIndex: number; pageIndex: number } | null>(null)
 
   // Filter available pages based on company's pagePermissions from admin
   // If no pagePermissions set, show all pages
@@ -152,6 +153,29 @@ export default function SidebarSettings() {
     setSections(updated)
   }
 
+  const handlePageDragStart = (sectionIndex: number, pageIndex: number) => {
+    setDraggedPage({ sectionIndex, pageIndex })
+  }
+
+  const handlePageDragOver = (e: React.DragEvent, sectionIndex: number, pageIndex: number) => {
+    e.preventDefault()
+    if (!draggedPage || draggedPage.sectionIndex !== sectionIndex) return
+    if (draggedPage.pageIndex === pageIndex) return
+
+    const updated = [...sections]
+    const pages = [...updated[sectionIndex].pages]
+    const draggedItem = pages[draggedPage.pageIndex]
+    pages.splice(draggedPage.pageIndex, 1)
+    pages.splice(pageIndex, 0, draggedItem)
+    updated[sectionIndex].pages = pages
+    setSections(updated)
+    setDraggedPage({ sectionIndex, pageIndex })
+  }
+
+  const handlePageDragEnd = () => {
+    setDraggedPage(null)
+  }
+
   const getAssignedPages = () => {
     const assigned = new Set<string>()
     sections.forEach(s => s.pages.forEach(p => assigned.add(p)))
@@ -229,23 +253,58 @@ export default function SidebarSettings() {
                   
                   {expandedSection === index && (
                     <div className="p-3 border-t border-gray-200">
-                      <p className="text-xs text-gray-500 mb-2">Select pages for this section:</p>
+                      {/* Current pages in order - draggable */}
+                      {section.pages.length > 0 && (
+                        <div className="mb-4">
+                          <p className="text-xs text-gray-500 mb-2">Current order (drag to reorder):</p>
+                          <div className="space-y-1">
+                            {section.pages.map((pageId, pageIndex) => {
+                              const page = AVAILABLE_PAGES.find(p => p.id === pageId)
+                              if (!page) return null
+                              return (
+                                <div
+                                  key={pageId}
+                                  draggable
+                                  onDragStart={() => handlePageDragStart(index, pageIndex)}
+                                  onDragOver={(e) => handlePageDragOver(e, index, pageIndex)}
+                                  onDragEnd={handlePageDragEnd}
+                                  className={`flex items-center gap-2 p-2 bg-emerald-50 border border-emerald-200 rounded cursor-grab active:cursor-grabbing ${
+                                    draggedPage?.sectionIndex === index && draggedPage?.pageIndex === pageIndex ? 'opacity-50' : ''
+                                  }`}
+                                >
+                                  <GripVertical size={14} className="text-emerald-400" />
+                                  <span className="text-sm flex-1">{page.label}</span>
+                                  <button
+                                    onClick={() => togglePage(index, pageId)}
+                                    className="text-red-400 hover:text-red-600"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Add pages */}
+                      <p className="text-xs text-gray-500 mb-2">Add pages to this section:</p>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {AVAILABLE_PAGES.map(page => {
                           const isInSection = section.pages.includes(page.id)
                           const isAssignedElsewhere = !isInSection && sections.some((s, i) => i !== index && s.pages.includes(page.id))
+                          if (isInSection) return null // Already shown above
                           return (
                             <label
                               key={page.id}
                               className={`flex items-center gap-2 p-2 rounded text-sm cursor-pointer ${
-                                isInSection ? 'bg-emerald-50 border border-emerald-200' :
                                 isAssignedElsewhere ? 'bg-gray-100 text-gray-400' :
                                 'bg-white border border-gray-200 hover:bg-gray-50'
                               }`}
                             >
                               <input
                                 type="checkbox"
-                                checked={isInSection}
+                                checked={false}
                                 onChange={() => togglePage(index, page.id)}
                                 disabled={isAssignedElsewhere}
                                 className="w-3.5 h-3.5"
