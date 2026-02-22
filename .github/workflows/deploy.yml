@@ -1,0 +1,69 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          script_stop: true
+          envs: GH_PAT
+          script: |
+            set -e
+            cd ~/Catalyst
+            
+            echo "=== Current commit ==="
+            git log --oneline -1
+            
+            echo "=== Setting remote with token ==="
+            git remote set-url origin https://${GH_PAT}@github.com/quicktechai-ops/Catalyst-main.git
+            
+            echo "=== Fetching latest ==="
+            git fetch origin
+            
+            echo "=== Resetting to origin/master ==="
+            git reset --hard origin/master
+            
+            echo "=== New commit ==="
+            git log --oneline -1
+            
+            # Rebuild backend
+            cd ~/Catalyst/backend
+            ~/.dotnet/dotnet build --configuration Release
+            
+            # Copy production config to release folder
+            cp ~/Catalyst/backend/appsettings.Production.json ~/Catalyst/backend/bin/Release/net9.0/
+            
+            # Restart backend service
+            sudo systemctl restart Catalyst-api
+            
+            # Rebuild all frontends
+            cd ~/Catalyst/admin
+            npm install
+            npm run build
+            
+            cd ~/Catalyst/company
+            npm install
+            npm run build
+            
+            cd ~/Catalyst/driver
+            npm install
+            npm run build
+            
+            cd ~/Catalyst/salesman
+            npm install
+            npm run build
+            
+            echo "Deployment complete!"
