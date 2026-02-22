@@ -1,0 +1,27 @@
+# Backend build artifacts
+backend/bin/
+backend/obj/
+backend/.vs/
+backend/*.user
+backend/*.userosscache
+backend/*.suo
+backend/.vscode/
+backend/*.log
+backend/appsettings.Development.json
+backend/publish-output/
+backend/publish-self-contained/
+
+# Frontend build artifacts
+company/node_modules/
+company/dist/
+company/.vscode/
+
+# Local build output
+local-output/
+
+# Git
+.git/
+.gitignore
+
+# Other
+*.DS_Store

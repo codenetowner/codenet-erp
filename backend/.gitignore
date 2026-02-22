@@ -1,0 +1,12 @@
+bin/
+obj/
+.vs/
+*.user
+*.userosscache
+*.suo
+.vscode/
+*.log
+appsettings.Development.json
+*.DS_Store
+publish-output/
+publish-self-contained/
