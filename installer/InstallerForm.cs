@@ -997,16 +997,10 @@ when internet is available.",
             await InstallNpmDependencies();
             progressBar.Value = 70;
             
-            // Step 6b: Build frontend for Electron
-            Log("Building frontend for Electron...");
+            // Step 6b: Build frontend for desktop app
+            Log("Building frontend...");
             progressLabel.Text = "Building frontend...";
-            await BuildFrontendForElectron();
-            progressBar.Value = 75;
-            
-            // Step 6c: Install Electron dependencies
-            Log("Installing Electron dependencies...");
-            progressLabel.Text = "Installing Electron app...";
-            await InstallElectronDependencies();
+            await BuildFrontendForDesktopApp();
             progressBar.Value = 80;
             
             // Step 7: Create launchers
@@ -1081,13 +1075,13 @@ when internet is available.",
                 Log("Company portal files copied.");
             }
             
-            // Copy electron-app folder
-            var srcElectron = Path.Combine(sourcePath, "electron-app");
-            var dstElectron = Path.Combine(installPath, "electron-app");
-            if (Directory.Exists(srcElectron) && !Directory.Exists(dstElectron))
+            // Copy desktop-app folder (WebView2 app)
+            var srcDesktop = Path.Combine(sourcePath, "desktop-app", "publish");
+            var dstDesktop = Path.Combine(installPath, "desktop-app");
+            if (Directory.Exists(srcDesktop) && !Directory.Exists(dstDesktop))
             {
-                CopyDirectory(srcElectron, dstElectron);
-                Log("Electron app files copied.");
+                CopyDirectory(srcDesktop, dstDesktop);
+                Log("Desktop app files copied.");
             }
             
             // Copy schema file if exists
@@ -1380,13 +1374,13 @@ VITE_API_URL=/api
         }
     }
     
-    private async Task BuildFrontendForElectron()
+    private async Task BuildFrontendForDesktopApp()
     {
         try
         {
             var companyPath = Path.Combine(installPath, "company");
-            var electronPath = Path.Combine(installPath, "electron-app");
-            var rendererPath = Path.Combine(electronPath, "renderer");
+            var desktopPath = Path.Combine(installPath, "desktop-app");
+            var rendererPath = Path.Combine(desktopPath, "renderer");
             
             // Create .env.production.local for local API
             var envFile = Path.Combine(companyPath, ".env.production.local");
@@ -1413,7 +1407,7 @@ VITE_API_URL=/api
             {
                 Log("Frontend built successfully.");
                 
-                // Copy dist to electron-app/renderer
+                // Copy dist to desktop-app/renderer
                 var distPath = Path.Combine(companyPath, "dist");
                 if (Directory.Exists(distPath))
                 {
@@ -1422,7 +1416,7 @@ VITE_API_URL=/api
                         Directory.Delete(rendererPath, true);
                     }
                     CopyDirectory(distPath, rendererPath);
-                    Log("Frontend copied to Electron renderer.");
+                    Log("Frontend copied to desktop app.");
                 }
             }
             else
@@ -1491,16 +1485,16 @@ VITE_API_URL=/api
     
     private void CreateLaunchers()
     {
-        // Create Electron launcher script
-        var electronLauncher = $@"@echo off
-cd /d ""{installPath}\electron-app""
-start """" npx electron .
+        // Create desktop app launcher (WebView2)
+        var desktopExe = Path.Combine(installPath, "desktop-app", "CatalystERP.exe");
+        var launcher = $@"@echo off
+start """" ""{desktopExe}""
 ";
-        System.IO.File.WriteAllText(Path.Combine(installPath, "Launch-Catalyst.bat"), electronLauncher);
+        System.IO.File.WriteAllText(Path.Combine(installPath, "Launch-Catalyst.bat"), launcher);
         
         // Create VBS launcher (hidden, no console)
         var companyLauncher = $@"Set WshShell = CreateObject(""WScript.Shell"")
-WshShell.Run ""cmd /c cd /d {installPath}\electron-app && npx electron ."", 0, False
+WshShell.Run """"""{desktopExe}"""""", 1, False
 Set WshShell = Nothing
 ";
         System.IO.File.WriteAllText(Path.Combine(installPath, "Launch-Company.vbs"), companyLauncher);
