@@ -12,6 +12,7 @@ import PremiumStores from './pages/PremiumStores'
 import Analytics from './pages/Analytics'
 import DeliveryDrivers from './pages/DeliveryDrivers'
 import DriverPayouts from './pages/DriverPayouts'
+import Licenses from './pages/Licenses'
 
 function App() {
   const { isAuthenticated, isLoading } = useAuth()
@@ -38,6 +39,7 @@ function App() {
         <Route path="analytics" element={<Analytics />} />
         <Route path="drivers" element={<DeliveryDrivers />} />
         <Route path="payouts" element={<DriverPayouts />} />
+        <Route path="licenses" element={<Licenses />} />
       </Route>
     </Routes>
   )

@@ -91,6 +91,10 @@ public class AppDbContext : DbContext
     public DbSet<JournalEntry> JournalEntries { get; set; }
     public DbSet<JournalEntryLine> JournalEntryLines { get; set; }
 
+    // Licensing
+    public DbSet<License> Licenses { get; set; }
+    public DbSet<LicenseActivation> LicenseActivations { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -655,5 +659,29 @@ public class AppDbContext : DbContext
             .WithMany(a => a.JournalEntryLines)
             .HasForeignKey(l => l.AccountId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // ===== Licensing =====
+
+        // License -> Company
+        modelBuilder.Entity<License>()
+            .HasOne(l => l.Company)
+            .WithMany()
+            .HasForeignKey(l => l.CompanyId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<License>()
+            .HasIndex(l => l.LicenseKey)
+            .IsUnique();
+
+        // LicenseActivation -> License
+        modelBuilder.Entity<LicenseActivation>()
+            .HasOne(la => la.License)
+            .WithMany(l => l.Activations)
+            .HasForeignKey(la => la.LicenseId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<LicenseActivation>()
+            .HasIndex(la => new { la.LicenseId, la.MachineFingerprint })
+            .IsUnique();
     }
 }

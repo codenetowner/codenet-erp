@@ -133,3 +133,14 @@ export const freelanceDriversApi = {
   suspend: (id: number) => api.put(`/admin/freelance-drivers/${id}/suspend`),
   getStats: () => api.get('/admin/freelance-drivers/stats'),
 }
+
+// Licenses
+export const licensesApi = {
+  getAll: () => api.get('/superadmin/licenses'),
+  getById: (id: number) => api.get(`/superadmin/licenses/${id}`),
+  create: (data: any) => api.post('/superadmin/licenses', data),
+  update: (id: number, data: any) => api.put(`/superadmin/licenses/${id}`, data),
+  revoke: (id: number) => api.post(`/superadmin/licenses/${id}/revoke`),
+  renew: (id: number, months: number) => api.post(`/superadmin/licenses/${id}/renew`, { months }),
+  deactivateDevice: (activationId: number) => api.delete(`/superadmin/licenses/activations/${activationId}`),
+}

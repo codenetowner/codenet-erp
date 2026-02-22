@@ -11,7 +11,8 @@ import {
   Crown,
   BarChart3,
   Truck,
-  Wallet
+  Wallet,
+  Key
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -26,6 +27,7 @@ const navItems = [
   { path: '/analytics', label: 'Analytics', icon: BarChart3 },
   { path: '/drivers', label: 'Delivery Drivers', icon: Truck },
   { path: '/payouts', label: 'Driver Payouts', icon: Wallet },
+  { path: '/licenses', label: 'Licenses', icon: Key },
 ]
 
 export default function Layout() {
