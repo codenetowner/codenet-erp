@@ -150,6 +150,17 @@ public class AuthService : IAuthService
             }
         }
 
+        // Parse page permissions from company if set
+        List<string>? pagePermissions = null;
+        if (!string.IsNullOrEmpty(employee.Company?.PagePermissions))
+        {
+            try
+            {
+                pagePermissions = System.Text.Json.JsonSerializer.Deserialize<List<string>>(employee.Company.PagePermissions);
+            }
+            catch { }
+        }
+
         var userInfo = new UserInfo
         {
             Id = employee.Id,
@@ -157,13 +168,14 @@ public class AuthService : IAuthService
             Username = employee.Username,
             Email = employee.Email,
             CompanyId = employee.CompanyId,
-            CompanyName = employee.Company.Name,
+            CompanyName = employee.Company?.Name ?? "",
             Role = employee.Role?.Name ?? "Employee",
             RoleId = employee.RoleId,
             IsDriver = employee.IsDriver,
             IsSuperAdmin = false,
             IsCompanyAdmin = false,
-            Permissions = permissions
+            Permissions = permissions,
+            PagePermissions = pagePermissions
         };
 
         var token = GenerateJwtToken(userInfo);

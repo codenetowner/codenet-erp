@@ -376,12 +376,19 @@ online admin portal. Internet connection is required for activation.",
                 {
                     licenseValidated = true;
                     lblLicenseStatus.ForeColor = Color.FromArgb(39, 174, 96);
+                    
+                    // Log page permissions for debugging
+                    var pagePermsDisplay = string.IsNullOrEmpty(activatedLicense.Company?.PagePermissions) 
+                        ? "All pages (no restrictions)" 
+                        : activatedLicense.Company.PagePermissions;
+                    
                     lblLicenseStatus.Text = $@"✓ License activated successfully!
 
 Company: {activatedLicense.Company?.Name}
 Username: {activatedLicense.Company?.Username}
 Expires: {activatedLicense.ExpiresAt:MMM dd, yyyy}
 Days remaining: {activatedLicense.DaysUntilExpiry}
+Page Permissions: {pagePermsDisplay}
 
 Click 'Next' to continue with installation.";
                     nextButton.Enabled = true;
@@ -1087,9 +1094,9 @@ when internet is available.",
             // Copy schema file if exists
             var srcSchema = Path.Combine(sourcePath, "cashvan_schema.sql");
             var dstSchema = Path.Combine(installPath, "cashvan_schema.sql");
-            if (System.IO.File.Exists(srcSchema) && !System.IO.File.Exists(dstSchema))
+            if (System.IO.File.Exists(srcSchema))
             {
-                System.IO.File.Copy(srcSchema, dstSchema);
+                System.IO.File.Copy(srcSchema, dstSchema, true);
                 Log("Schema file copied.");
             }
         });
@@ -1639,15 +1646,17 @@ goto check
         try
         {
             var desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+            var desktopAppPath = Path.Combine(installPath, "desktop-app");
+            var desktopExe = Path.Combine(desktopAppPath, "CatalystERP.exe");
             
-            // Use PowerShell to create shortcut (Company Portal only)
+            // Use PowerShell to create shortcut pointing directly to WebView2 app
             CreateShortcutWithPowerShell(
                 Path.Combine(desktopPath, "Catalyst Company Portal.lnk"),
-                Path.Combine(installPath, "Launch-Company.vbs"),
-                installPath,
-                "Launch Catalyst Company Portal"
+                desktopExe,
+                desktopAppPath,
+                "Launch Catalyst ERP Desktop Application"
             );
-            Log("Company Portal shortcut created.");
+            Log("Company Portal shortcut created (WebView2 app).");
         }
         catch (Exception ex)
         {
@@ -1683,14 +1692,17 @@ $Shortcut.Save()
     private void CreateUrlShortcuts()
     {
         var desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+        var desktopExe = Path.Combine(installPath, "desktop-app", "CatalystERP.exe");
         
-        // Create simple VBS shortcut (Company Portal only)
-        System.IO.File.Copy(
-            Path.Combine(installPath, "Launch-Company.vbs"),
-            Path.Combine(desktopPath, "Catalyst Company Portal.vbs"),
-            true);
+        // Create a batch file that launches the WebView2 app directly
+        var batchContent = $@"@echo off
+start """" ""{desktopExe}""
+";
+        System.IO.File.WriteAllText(
+            Path.Combine(desktopPath, "Catalyst Company Portal.bat"),
+            batchContent);
         
-        Log("Desktop shortcut created (batch file).");
+        Log("Desktop shortcut created (WebView2 app launcher).");
     }
     
     private void AddBackendToStartup()
@@ -1756,7 +1768,8 @@ $Shortcut.Save()
         {
             Process.Start(new ProcessStartInfo
             {
-                FileName = Path.Combine(installPath, "Launch-Company.bat"),
+                FileName = "wscript.exe",
+                Arguments = "\"" + Path.Combine(installPath, "Launch-Company.vbs") + "\"",
                 WorkingDirectory = installPath,
                 UseShellExecute = true
             });
@@ -1922,13 +1935,7 @@ $Shortcut.Save()
             companyCmd.Parameters.AddWithValue("phone", (object?)activatedLicense.Company.Phone ?? DBNull.Value);
             companyCmd.Parameters.AddWithValue("address", (object?)activatedLicense.Company.Address ?? DBNull.Value);
             companyCmd.Parameters.AddWithValue("logo", (object?)activatedLicense.Company.LogoUrl ?? DBNull.Value);
-            // Serialize page permissions as JSON
-            string? pagePermissionsJson = null;
-            if (activatedLicense.Company.PagePermissions != null && activatedLicense.Company.PagePermissions.Count > 0)
-            {
-                pagePermissionsJson = System.Text.Json.JsonSerializer.Serialize(activatedLicense.Company.PagePermissions);
-            }
-            companyCmd.Parameters.AddWithValue("pagePermissions", (object?)pagePermissionsJson ?? DBNull.Value);
+            companyCmd.Parameters.AddWithValue("pagePermissions", (object?)activatedLicense.Company.PagePermissions ?? DBNull.Value);
             await companyCmd.ExecuteNonQueryAsync();
             
             // Create Main Warehouse for the company if it doesn't exist
@@ -1955,6 +1962,7 @@ $Shortcut.Save()
             
             Log($"License saved for company: {activatedLicense.Company.Name}");
             Log($"Company login: {activatedLicense.Company.Username}");
+            Log($"Page permissions: {activatedLicense.Company.PagePermissions ?? "(none)"}");
             Log($"Main Warehouse created.");
         }
         catch (Exception ex)
@@ -1988,5 +1996,5 @@ public class CompanyInfo
     public string? Address { get; set; }
     public string? LogoUrl { get; set; }
     public string CurrencySymbol { get; set; } = "$";
-    public List<string>? PagePermissions { get; set; }
+    public string? PagePermissions { get; set; }
 }

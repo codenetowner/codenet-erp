@@ -7,7 +7,6 @@ A comprehensive multi-portal ERP system for van sales operations, B2B distributi
 | Name | Role |
 |------|------|
 | **Ali Shanboura** | Developer |
-| **Ahmad Mousa** | Developer |
 
 ---
 

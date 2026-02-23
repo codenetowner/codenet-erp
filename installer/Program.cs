@@ -1,14 +1,17 @@
 using System;
 using System.Windows.Forms;
 
-namespace CatalystInstaller;
-
-static class Program
+namespace CatalystInstaller
 {
-    [STAThread]
-    static void Main()
+    static class Program
     {
-        ApplicationConfiguration.Initialize();
-        Application.Run(new InstallerForm());
+        [STAThread]
+        static void Main()
+        {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.SetHighDpiMode(HighDpiMode.SystemAware);
+            Application.Run(new InstallerForm());
+        }
     }
 }

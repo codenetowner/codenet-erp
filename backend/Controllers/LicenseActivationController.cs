@@ -207,7 +207,8 @@ public class LicenseActivationController : ControllerBase
                 Phone = company.Phone,
                 Address = company.Address,
                 LogoUrl = company.LogoUrl,
-                CurrencySymbol = company.CurrencySymbol
+                CurrencySymbol = company.CurrencySymbol,
+                PagePermissions = company.PagePermissions
             }
         };
     }
@@ -260,4 +261,5 @@ public class CompanyInfo
     public string? Address { get; set; }
     public string? LogoUrl { get; set; }
     public string CurrencySymbol { get; set; } = "$";
+    public string? PagePermissions { get; set; }
 }

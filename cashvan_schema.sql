@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS companies (
     rating INTEGER NOT NULL DEFAULT 0,
     is_premium BOOLEAN NOT NULL DEFAULT false,
     premium_tier VARCHAR(50),
+    page_permissions TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -176,6 +177,7 @@ CREATE TABLE IF NOT EXISTS products (
     barcode VARCHAR(100),
     box_barcode VARCHAR(100),
     name VARCHAR(255) NOT NULL,
+    name_ar VARCHAR(255),
     description TEXT,
     category_id INT REFERENCES product_categories(id),
     image_url VARCHAR(500),
@@ -392,7 +394,10 @@ CREATE TABLE IF NOT EXISTS tasks (
 CREATE TABLE IF NOT EXISTS task_items (
     id SERIAL PRIMARY KEY,
     task_id INT NOT NULL REFERENCES tasks(id),
-    product_id INT NOT NULL REFERENCES products(id),
+    product_id INT REFERENCES products(id) ON DELETE SET NULL,
+    product_name VARCHAR(255),
+    product_sku VARCHAR(100),
+    product_barcode VARCHAR(100),
     unit_type VARCHAR(50) NOT NULL DEFAULT 'Piece',
     quantity INT NOT NULL DEFAULT 1,
     unit_price NUMERIC NOT NULL DEFAULT 0,
@@ -446,7 +451,13 @@ CREATE TABLE IF NOT EXISTS orders (
 CREATE TABLE IF NOT EXISTS order_items (
     id SERIAL PRIMARY KEY,
     order_id INT NOT NULL REFERENCES orders(id),
-    product_id INT NOT NULL REFERENCES products(id),
+    product_id INT REFERENCES products(id) ON DELETE SET NULL,
+    product_name VARCHAR(255),
+    product_sku VARCHAR(100),
+    product_barcode VARCHAR(100),
+    variant_name VARCHAR(255),
+    variant_sku VARCHAR(100),
+    variant_details VARCHAR(500),
     variant_id INT REFERENCES product_variants(id) ON DELETE SET NULL,
     unit_id INT,
     unit_type VARCHAR(50) NOT NULL DEFAULT 'piece',
@@ -1274,6 +1285,31 @@ CREATE TABLE IF NOT EXISTS journal_entry_lines (
     credit NUMERIC NOT NULL DEFAULT 0,
     description TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
+-- SIDEBAR CUSTOMIZATION
+-- ============================================================
+
+-- 72. SIDEBAR SECTIONS (depends on companies)
+CREATE TABLE IF NOT EXISTS sidebar_sections (
+    id SERIAL PRIMARY KEY,
+    company_id INT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    sort_order INT DEFAULT 0,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 73. SIDEBAR PAGE ASSIGNMENTS (depends on companies, sidebar_sections)
+CREATE TABLE IF NOT EXISTS sidebar_page_assignments (
+    id SERIAL PRIMARY KEY,
+    company_id INT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    section_id INT NOT NULL REFERENCES sidebar_sections(id) ON DELETE CASCADE,
+    page_id VARCHAR(100) NOT NULL,
+    sort_order INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW()
 );
 
 -- ============================================================

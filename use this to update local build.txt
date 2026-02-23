@@ -1,8 +1,0 @@
-# 1. Build frontend
-cd company
-$env:VITE_API_URL="/api"; npx vite build --base=/
-# Copy dist/* to local-output/wwwroot/
-
-# 2. Build backend (if changed)
-cd backend
-dotnet publish -c Release -r win-x64 --self-contained -o ../local-output
