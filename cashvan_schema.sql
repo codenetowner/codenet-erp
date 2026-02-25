@@ -271,6 +271,7 @@ CREATE TABLE IF NOT EXISTS suppliers (
     payment_terms VARCHAR(100),
     credit_limit NUMERIC NOT NULL DEFAULT 0,
     balance NUMERIC NOT NULL DEFAULT 0,
+    credit_balance NUMERIC NOT NULL DEFAULT 0,
     notes TEXT,
     is_active BOOLEAN NOT NULL DEFAULT true,
     is_manufacturer BOOLEAN NOT NULL DEFAULT false,

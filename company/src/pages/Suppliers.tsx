@@ -213,7 +213,8 @@ export default function Suppliers() {
     baseUnit: 'Piece', secondUnit: 'Box', unitsPerSecond: 12, currency: 'USD', defaultWarehouseId: '',
     retailPrice: 0, wholesalePrice: 0, superWholesalePrice: 0, costPrice: 0,
     boxRetailPrice: 0, boxWholesalePrice: 0, boxSuperWholesalePrice: 0, boxCostPrice: 0,
-    quantity: 0, quantityBox: 0, lowStockAlert: 10, lowStockAlertBox: 2, isActive: true
+    quantity: 0, quantityBox: 0, lowStockAlert: 10, lowStockAlertBox: 2, isActive: true,
+    color: '', size: '', weight: '', length: '', height: ''
   })
   const [poForm, setPoForm] = useState({
     supplierId: '', poDate: new Date().toISOString().split('T')[0],
@@ -244,7 +245,7 @@ export default function Suppliers() {
   const loadData = async () => {
     try {
       setLoading(true)
-      const [supRes, invRes, payRes, prodRes, whRes, catRes, poRes, unitsRes, curRes] = await Promise.all([
+      const [supRes, invRes, payRes, prodRes, whRes, catRes, poRes, unitsRes, curRes] = await Promise.allSettled([
         suppliersApi.getAll(),
         suppliersApi.getInvoices(),
         suppliersApi.getPayments(),
@@ -255,15 +256,15 @@ export default function Suppliers() {
         unitsApi.getAll({ activeOnly: true }),
         currenciesApi.getAll()
       ])
-      setSuppliers(supRes.data)
-      setInvoices(invRes.data)
-      setPayments(payRes.data)
-      setProducts(prodRes.data)
-      setWarehouses(whRes.data)
-      setCategories(catRes.data || [])
-      setPurchaseOrders(poRes.data || [])
-      setCurrencies(curRes.data || [])
-      setUnits(unitsRes.data || [])
+      if (supRes.status === 'fulfilled') setSuppliers(supRes.value.data)
+      if (invRes.status === 'fulfilled') setInvoices(invRes.value.data)
+      if (payRes.status === 'fulfilled') setPayments(payRes.value.data)
+      if (prodRes.status === 'fulfilled') setProducts(prodRes.value.data)
+      if (whRes.status === 'fulfilled') setWarehouses(whRes.value.data)
+      if (catRes.status === 'fulfilled') setCategories(catRes.value.data || [])
+      if (poRes.status === 'fulfilled') setPurchaseOrders(poRes.value.data || [])
+      if (curRes.status === 'fulfilled') setCurrencies(curRes.value.data || [])
+      if (unitsRes.status === 'fulfilled') setUnits(unitsRes.value.data || [])
     } catch (error) {
       console.error('Failed to load data:', error)
     } finally {
@@ -843,7 +844,8 @@ export default function Suppliers() {
       baseUnit: 'Piece', secondUnit: 'Box', unitsPerSecond: 12, currency: 'USD', defaultWarehouseId: '',
       retailPrice: 0, wholesalePrice: 0, superWholesalePrice: 0, costPrice: 0,
       boxRetailPrice: 0, boxWholesalePrice: 0, boxSuperWholesalePrice: 0, boxCostPrice: 0,
-      quantity: 0, quantityBox: 0, lowStockAlert: 10, lowStockAlertBox: 2, isActive: true
+      quantity: 0, quantityBox: 0, lowStockAlert: 10, lowStockAlertBox: 2, isActive: true,
+      color: '', size: '', weight: '', length: '', height: ''
     })
     setShowAdvanced(false)
   }
@@ -911,7 +913,12 @@ export default function Suppliers() {
       quantityBox: 0,
       lowStockAlert: product.lowStockAlert || 10,
       lowStockAlertBox: product.lowStockAlertBox || 2,
-      isActive: product.isActive
+      isActive: product.isActive,
+      color: (product as any).color || '',
+      size: (product as any).size || '',
+      weight: (product as any).weight?.toString() || '',
+      length: (product as any).length?.toString() || '',
+      height: (product as any).height?.toString() || ''
     })
     setShowAdvanced(true)
     setShowSecondUnit(!!product.secondUnit)
@@ -995,7 +1002,12 @@ export default function Suppliers() {
       quantityBox: 0,
       lowStockAlert: product.lowStockAlert || 10,
       lowStockAlertBox: product.lowStockAlertBox || 2,
-      isActive: product.isActive
+      isActive: product.isActive,
+      color: (product as any).color || '',
+      size: (product as any).size || '',
+      weight: (product as any).weight?.toString() || '',
+      length: (product as any).length?.toString() || '',
+      height: (product as any).height?.toString() || ''
     })
     setShowAdvanced(true) // Show advanced fields when editing
     setShowSecondUnit(!!product.secondUnit)
@@ -2348,6 +2360,37 @@ export default function Suppliers() {
                   </div>
                 </div>
               )}
+
+              {/* Optional Attributes - Collapsible */}
+              <details className="group">
+                <summary className="cursor-pointer text-xs font-medium text-slate-500 hover:text-slate-700 flex items-center gap-2 py-2">
+                  <span className="transition-transform group-open:rotate-90">▶</span>
+                  Optional Attributes (Color, Size, Dimensions)
+                </summary>
+                <div className="grid grid-cols-5 gap-3 mt-3 p-3 bg-slate-50 rounded-lg">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Color</label>
+                    <input type="text" value={productForm.color} onChange={(e) => setProductForm({...productForm, color: e.target.value})} placeholder="e.g. Red" className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Size</label>
+                    <input type="text" value={productForm.size} onChange={(e) => setProductForm({...productForm, size: e.target.value})} placeholder="e.g. Large" className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Weight (kg)</label>
+                    <input type="number" step="0.01" value={productForm.weight} onChange={(e) => setProductForm({...productForm, weight: e.target.value})} placeholder="0.00" className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Length (cm)</label>
+                    <input type="number" step="0.01" value={productForm.length} onChange={(e) => setProductForm({...productForm, length: e.target.value})} placeholder="0" className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Height (cm)</label>
+                    <input type="number" step="0.01" value={productForm.height} onChange={(e) => setProductForm({...productForm, height: e.target.value})} placeholder="0" className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" />
+                  </div>
+                </div>
+              </details>
+
               <div className="flex gap-3 pt-4">
                 <button type="button" onClick={() => { setShowProductModal(false); setCurrentItemIndex(null); setEditingProductId(null); setShowSecondUnit(false) }} className="flex-1 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
                 <button type="submit" disabled={saving} className="flex-1 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 disabled:opacity-50">

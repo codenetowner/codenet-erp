@@ -63,25 +63,9 @@ public class InstallerForm : Form
     {
         InitializeComponent();
         
-        // Get the directory where the installer EXE is located (source files)
+        // Source path = same folder as installer EXE (backend folder is alongside it)
         var exePath = Application.ExecutablePath;
-        var exeDir = Path.GetDirectoryName(exePath) ?? "";
-        
-        // Find source path (where backend/company folders are)
-        if (exeDir.Contains("installer"))
-        {
-            sourcePath = exeDir;
-            while (!string.IsNullOrEmpty(sourcePath) && Path.GetFileName(sourcePath) != "cashvan-main-master")
-            {
-                var parent = Path.GetDirectoryName(sourcePath);
-                if (parent == sourcePath || string.IsNullOrEmpty(parent)) break;
-                sourcePath = parent;
-            }
-        }
-        else
-        {
-            sourcePath = exeDir;
-        }
+        sourcePath = Path.GetDirectoryName(exePath) ?? "";
         
         CheckPostgresInstalled();
     }
@@ -964,33 +948,39 @@ when internet is available.",
         {
             progressBar.Value = 0;
             
-            // Step 0a: Stop existing CatalystAPI service if running (to unlock files)
-            Log("Stopping existing service (if any)...");
-            progressLabel.Text = "Stopping existing service...";
+            // Step 0a: Stop existing backend (service or process) to unlock files
+            Log("Stopping existing backend...");
+            progressLabel.Text = "Stopping existing backend...";
             try
             {
-                var stopProc = new Process
+                // Try stopping old Windows Service (from previous installs)
+                try
                 {
-                    StartInfo = new ProcessStartInfo
+                    var stopProc = new Process
                     {
-                        FileName = "sc.exe",
-                        Arguments = "stop CatalystAPI",
-                        UseShellExecute = false,
-                        CreateNoWindow = true,
-                        RedirectStandardOutput = true
-                    }
-                };
-                stopProc.Start();
-                stopProc.WaitForExit(10000);
-                // Also kill any lingering backend process
+                        StartInfo = new ProcessStartInfo
+                        {
+                            FileName = "sc.exe",
+                            Arguments = "stop CatalystAPI",
+                            UseShellExecute = false,
+                            CreateNoWindow = true,
+                            RedirectStandardOutput = true
+                        }
+                    };
+                    stopProc.Start();
+                    stopProc.WaitForExit(5000);
+                }
+                catch { }
+                
+                // Kill any running backend process (from VBS launcher or service)
                 foreach (var proc in Process.GetProcessesByName("CashVan.API"))
                 {
                     try { proc.Kill(); proc.WaitForExit(5000); } catch { }
                 }
                 await Task.Delay(2000); // Wait for files to be released
-                Log("Existing service stopped.");
+                Log("Existing backend stopped.");
             }
-            catch { Log("No existing service found."); }
+            catch { Log("No existing backend found."); }
             
             // Step 0b: Copy source files to install location
             Log($"Copying files to {installPath}...");
@@ -1090,6 +1080,9 @@ when internet is available.",
     {
         await Task.Run(() =>
         {
+            Log($"Source path: {sourcePath}");
+            Log($"Install path: {installPath}");
+            
             // Create install directory
             if (!Directory.Exists(installPath))
             {
@@ -1099,6 +1092,8 @@ when internet is available.",
             // Copy backend folder (includes frontend in wwwroot)
             var srcBackend = Path.Combine(sourcePath, "backend");
             var dstBackend = Path.Combine(installPath, "backend");
+            Log($"Looking for backend at: {srcBackend}");
+            Log($"Backend folder exists: {Directory.Exists(srcBackend)}");
             if (Directory.Exists(srcBackend))
             {
                 if (Directory.Exists(dstBackend))
@@ -1628,111 +1623,97 @@ start http://localhost:5227
     {
         try
         {
-            var serviceName = "CatalystAPI";
-            var serviceDisplayName = "Catalyst ERP Backend";
             var backendExe = Path.Combine(installPath, "backend", "CashVan.API.exe");
+            var backendDir = Path.Combine(installPath, "backend");
             
-            // First, try to stop and delete existing service if it exists
+            // Remove old Windows Service if it exists (from previous installs)
             try
             {
-                var stopProcess = new Process
+                var stopProc = new Process
                 {
                     StartInfo = new ProcessStartInfo
                     {
                         FileName = "sc.exe",
-                        Arguments = $"stop {serviceName}",
+                        Arguments = "stop CatalystAPI",
                         UseShellExecute = false,
                         CreateNoWindow = true,
                         RedirectStandardOutput = true
                     }
                 };
-                stopProcess.Start();
-                stopProcess.WaitForExit(5000);
+                stopProc.Start();
+                stopProc.WaitForExit(5000);
                 
-                var deleteProcess = new Process
+                var delProc = new Process
                 {
                     StartInfo = new ProcessStartInfo
                     {
                         FileName = "sc.exe",
-                        Arguments = $"delete {serviceName}",
+                        Arguments = "delete CatalystAPI",
                         UseShellExecute = false,
                         CreateNoWindow = true,
                         RedirectStandardOutput = true
                     }
                 };
-                deleteProcess.Start();
-                deleteProcess.WaitForExit(5000);
-                
-                System.Threading.Thread.Sleep(1000); // Wait for service to be fully removed
+                delProc.Start();
+                delProc.WaitForExit(5000);
             }
             catch { }
             
-            // Set ASPNETCORE_ENVIRONMENT so backend uses appsettings.Local.json (local PostgreSQL)
-            Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Local", EnvironmentVariableTarget.Machine);
-            Log("Set ASPNETCORE_ENVIRONMENT=Local (system-wide).");
-            
-            // Create the Windows Service with --environment Local argument
-            var createProcess = new Process
+            // Remove old VBS startup files (from previous installs)
+            try
             {
-                StartInfo = new ProcessStartInfo
+                var startupFolder = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
+                var oldVbs = Path.Combine(startupFolder, "CatalystBackend.vbs");
+                if (System.IO.File.Exists(oldVbs)) System.IO.File.Delete(oldVbs);
+                var oldVbs2 = Path.Combine(installPath, "StartBackend.vbs");
+                if (System.IO.File.Exists(oldVbs2)) System.IO.File.Delete(oldVbs2);
+            }
+            catch { }
+            
+            // Add to Windows Registry Run key (auto-start at login, no admin needed)
+            // This is how professional apps handle auto-start
+            try
+            {
+                using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(
+                    @"Software\Microsoft\Windows\CurrentVersion\Run", true);
+                if (key != null)
                 {
-                    FileName = "sc.exe",
-                    Arguments = $"create {serviceName} binPath= \"\\\"{backendExe}\\\" --environment Local\" DisplayName= \"{serviceDisplayName}\" start= auto",
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true
+                    key.SetValue("CatalystBackend", $"\"{backendExe}\" --environment Local");
+                    Log("Added to Windows auto-start (Registry Run key).");
                 }
-            };
-            createProcess.Start();
-            var output = createProcess.StandardOutput.ReadToEnd();
-            var error = createProcess.StandardError.ReadToEnd();
-            createProcess.WaitForExit();
-            
-            if (createProcess.ExitCode != 0)
+            }
+            catch (Exception ex)
             {
-                Log($"Service creation output: {output} {error}");
-                throw new Exception($"Failed to create service. Run installer as Administrator.");
+                Log($"Registry warning: {ex.Message}");
             }
             
-            Log($"Windows Service '{serviceName}' created.");
-            
-            // Configure service to restart on failure
-            var failureProcess = new Process
+            // Verify backend exe exists before starting
+            if (!System.IO.File.Exists(backendExe))
             {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "sc.exe",
-                    Arguments = $"failure {serviceName} reset= 86400 actions= restart/5000/restart/10000/restart/30000",
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
-            };
-            failureProcess.Start();
-            failureProcess.WaitForExit();
+                Log($"ERROR: Backend not found at: {backendExe}");
+                Log($"Source path was: {sourcePath}");
+                Log($"Install path is: {installPath}");
+                return;
+            }
             
-            // Start the service
-            var startProcess = new Process
+            // Start backend directly (WinExe = no console window, runs silently)
+            Log("Starting backend...");
+            Process.Start(new ProcessStartInfo
             {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "sc.exe",
-                    Arguments = $"start {serviceName}",
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true
-                }
-            };
-            startProcess.Start();
-            startProcess.WaitForExit();
+                FileName = backendExe,
+                Arguments = "--environment Local",
+                WorkingDirectory = backendDir,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            });
             
-            Log("Catalyst API service installed and started.");
-            Log("Service will auto-start when computer turns on.");
+            System.Threading.Thread.Sleep(3000);
+            Log("Backend started successfully!");
+            Log("Backend will auto-start when you log in.");
         }
         catch (Exception ex)
         {
-            Log($"Service installation warning: {ex.Message}");
-            Log("TIP: Run installer as Administrator to install the service.");
+            Log($"Startup setup warning: {ex.Message}");
         }
     }
     

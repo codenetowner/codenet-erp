@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Catalyst.API.Data;
 using Catalyst.API.Models;
 using Catalyst.API.Helpers;
+using Catalyst.API.Services;
 
 namespace Catalyst.API.Controllers;
 
@@ -13,10 +14,39 @@ namespace Catalyst.API.Controllers;
 public class ProductsController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly AccountingService _accountingService;
 
-    public ProductsController(AppDbContext context)
+    public ProductsController(AppDbContext context, AccountingService accountingService)
     {
         _context = context;
+        _accountingService = accountingService;
+    }
+
+    /// <summary>
+    /// Get or create a "Walk-in Supplier" for the company (used for Products page stock entries)
+    /// </summary>
+    private async Task<Supplier> GetOrCreateWalkInSupplier(int companyId)
+    {
+        var supplier = await _context.Suppliers
+            .FirstOrDefaultAsync(s => s.CompanyId == companyId && s.Name == "Walk-in Supplier");
+
+        if (supplier == null)
+        {
+            supplier = new Supplier
+            {
+                CompanyId = companyId,
+                Name = "Walk-in Supplier",
+                CompanyName = "Direct Purchase",
+                Notes = "Auto-created for products added directly from Products page",
+                IsActive = true,
+                CreatedAt = TimeZoneHelper.Now,
+                UpdatedAt = TimeZoneHelper.Now
+            };
+            _context.Suppliers.Add(supplier);
+            await _context.SaveChangesAsync();
+        }
+
+        return supplier;
     }
 
     private int GetCompanyId()
@@ -192,43 +222,77 @@ public class ProductsController : ControllerBase
         _context.Products.Add(product);
         await _context.SaveChangesAsync();
 
-        // Create initial inventory if quantity is provided
-        if (dto.InitialQuantity > 0 && dto.InitialWarehouseId.HasValue)
+        // Create initial inventory via Walk-in Supplier purchase invoice
+        var warehouseId = dto.InitialWarehouseId ?? dto.DefaultWarehouseId;
+        if (dto.InitialQuantity > 0 && warehouseId.HasValue)
         {
-            // Get employee ID if logged in as employee, otherwise null (company login)
-            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            int? employeeId = null;
-            if (int.TryParse(userIdClaim, out var parsedId))
-            {
-                // Check if this is an employee ID (not company ID)
-                var isEmployee = await _context.Employees.AnyAsync(e => e.Id == parsedId && e.CompanyId == companyId);
-                if (isEmployee) employeeId = parsedId;
-            }
-            
-            // Create inventory record
-            var inventory = new Inventory
+            var walkInSupplier = await GetOrCreateWalkInSupplier(companyId);
+
+            // Generate invoice number
+            var invoiceCount = await _context.PurchaseInvoices.CountAsync(i => i.CompanyId == companyId);
+            var invoiceNumber = $"PI-{TimeZoneHelper.Now:yyyy}-{(invoiceCount + 1).ToString().PadLeft(4, '0')}";
+
+            var unitPrice = dto.CostPrice > 0 ? dto.CostPrice : 0;
+            var lineTotal = dto.InitialQuantity * unitPrice;
+
+            var invoice = new PurchaseInvoice
             {
                 CompanyId = companyId,
-                ProductId = product.Id,
-                WarehouseId = dto.InitialWarehouseId.Value,
-                Quantity = dto.InitialQuantity,
-                UpdatedAt = TimeZoneHelper.Now
+                SupplierId = walkInSupplier.Id,
+                InvoiceNumber = invoiceNumber,
+                InvoiceDate = TimeZoneHelper.Now,
+                Subtotal = lineTotal,
+                TotalAmount = lineTotal,
+                PaidAmount = lineTotal,
+                PaymentStatus = "paid",
+                Reference = $"Product creation: {product.Name}",
+                Notes = "Auto-generated from Products page"
             };
-            _context.Inventories.Add(inventory);
+
+            invoice.Items.Add(new PurchaseInvoiceItem
+            {
+                ProductId = product.Id,
+                WarehouseId = warehouseId.Value,
+                Quantity = (int)dto.InitialQuantity,
+                UnitPrice = unitPrice,
+                LineTotal = lineTotal
+            });
+
+            _context.PurchaseInvoices.Add(invoice);
+
+            // Create inventory record
+            var inventory = await _context.Inventories
+                .FirstOrDefaultAsync(i => i.ProductId == product.Id && i.WarehouseId == warehouseId.Value && i.CompanyId == companyId);
+
+            if (inventory != null)
+            {
+                inventory.Quantity += dto.InitialQuantity;
+                inventory.UpdatedAt = TimeZoneHelper.Now;
+            }
+            else
+            {
+                _context.Inventories.Add(new Inventory
+                {
+                    CompanyId = companyId,
+                    ProductId = product.Id,
+                    WarehouseId = warehouseId.Value,
+                    Quantity = dto.InitialQuantity,
+                    ReservedQuantity = 0,
+                    UpdatedAt = TimeZoneHelper.Now
+                });
+            }
 
             // Record inventory movement
             _context.InventoryMovements.Add(new InventoryMovement
             {
                 CompanyId = companyId,
                 ProductId = product.Id,
-                WarehouseId = dto.InitialWarehouseId.Value,
-                MovementType = "initial_stock",
+                WarehouseId = warehouseId,
+                MovementType = "purchase",
                 Quantity = dto.InitialQuantity,
-                ReferenceType = "product_creation",
-                ReferenceId = product.Id,
-                Notes = $"Initial stock for {product.Name}",
-                CreatedBy = employeeId,
-                CreatedAt = TimeZoneHelper.Now
+                UnitCost = unitPrice,
+                ReferenceType = "purchase_invoice",
+                Notes = $"Initial stock via Walk-in Supplier: {invoiceNumber}"
             });
 
             // Record cost history
@@ -239,12 +303,20 @@ public class ProductsController : ControllerBase
                     ProductId = product.Id,
                     CompanyId = companyId,
                     Cost = dto.CostPrice,
+                    SupplierName = "Walk-in Supplier",
                     Notes = $"Initial stock entry (Qty: {dto.InitialQuantity})",
                     RecordedDate = TimeZoneHelper.Now
                 });
             }
 
             await _context.SaveChangesAsync();
+
+            // Post accounting entry
+            try
+            {
+                await _accountingService.PostSupplierInvoiceEntry(companyId, invoice.Id, invoice.TotalAmount, invoice.InvoiceDate);
+            }
+            catch { /* Accounting is optional - don't fail product creation */ }
         }
 
         return CreatedAtAction(nameof(GetProduct), new { id = product.Id }, product);
@@ -423,20 +495,20 @@ public class ProductsController : ControllerBase
             // Convert second unit to base if needed
             newQuantity = dto.BaseUnitQuantity;
             if (dto.SecondUnitQuantity.HasValue && product.UnitsPerSecond > 0)
-                newQuantity += dto.SecondUnitQuantity.Value * product.UnitsPerSecond;
+                newQuantity += dto.SecondUnitQuantity.Value / product.UnitsPerSecond;
         }
         else if (dto.AdjustmentType == "add")
         {
             decimal addQty = dto.BaseUnitQuantity;
             if (dto.SecondUnitQuantity.HasValue && product.UnitsPerSecond > 0)
-                addQty += dto.SecondUnitQuantity.Value * product.UnitsPerSecond;
+                addQty += dto.SecondUnitQuantity.Value / product.UnitsPerSecond;
             newQuantity = oldQuantity + addQty;
         }
         else if (dto.AdjustmentType == "subtract")
         {
             decimal subQty = dto.BaseUnitQuantity;
             if (dto.SecondUnitQuantity.HasValue && product.UnitsPerSecond > 0)
-                subQty += dto.SecondUnitQuantity.Value * product.UnitsPerSecond;
+                subQty += dto.SecondUnitQuantity.Value / product.UnitsPerSecond;
             newQuantity = oldQuantity - subQty;
         }
         else
@@ -467,22 +539,99 @@ public class ProductsController : ControllerBase
             inventory.LastCountedAt = TimeZoneHelper.Now;
         }
 
-        // Record inventory movement
-        _context.InventoryMovements.Add(new InventoryMovement
+        // Create Walk-in Supplier purchase invoice if requested (Products page stock additions)
+        if (dto.CreatePurchaseInvoice && dto.AdjustmentType == "add" && diff > 0)
         {
-            CompanyId = companyId,
-            ProductId = dto.ProductId,
-            WarehouseId = dto.WarehouseId,
-            MovementType = "stock_adjustment",
-            Quantity = diff,
-            ReferenceType = "stock_adjustment",
-            ReferenceId = dto.ProductId,
-            Notes = $"[{dto.Reason ?? "No reason"}] {dto.AdjustmentType}: {oldQuantity} → {newQuantity} ({(diff >= 0 ? "+" : "")}{diff} {product.BaseUnit}){(dto.VariantId.HasValue ? $" [VariantId:{dto.VariantId}]" : "")}",
-            CreatedBy = employeeId,
-            CreatedAt = TimeZoneHelper.Now
-        });
+            var walkInSupplier = await GetOrCreateWalkInSupplier(companyId);
 
-        await _context.SaveChangesAsync();
+            var invoiceCount = await _context.PurchaseInvoices.CountAsync(i => i.CompanyId == companyId);
+            var invoiceNumber = $"PI-{TimeZoneHelper.Now:yyyy}-{(invoiceCount + 1).ToString().PadLeft(4, '0')}";
+
+            var unitPrice = product.CostPrice;
+            var lineTotal = diff * unitPrice;
+
+            var invoice = new PurchaseInvoice
+            {
+                CompanyId = companyId,
+                SupplierId = walkInSupplier.Id,
+                InvoiceNumber = invoiceNumber,
+                InvoiceDate = TimeZoneHelper.Now,
+                Subtotal = lineTotal,
+                TotalAmount = lineTotal,
+                PaidAmount = lineTotal,
+                PaymentStatus = "paid",
+                Reference = $"Stock addition: {product.Name}",
+                Notes = "Auto-generated from Products page"
+            };
+
+            invoice.Items.Add(new PurchaseInvoiceItem
+            {
+                ProductId = dto.ProductId,
+                WarehouseId = dto.WarehouseId,
+                Quantity = (int)diff,
+                UnitPrice = unitPrice,
+                LineTotal = lineTotal
+            });
+
+            _context.PurchaseInvoices.Add(invoice);
+
+            // Record as purchase movement
+            _context.InventoryMovements.Add(new InventoryMovement
+            {
+                CompanyId = companyId,
+                ProductId = dto.ProductId,
+                WarehouseId = dto.WarehouseId,
+                MovementType = "purchase",
+                Quantity = diff,
+                UnitCost = unitPrice,
+                ReferenceType = "purchase_invoice",
+                Notes = $"Stock added via Walk-in Supplier: {invoiceNumber}",
+                CreatedBy = employeeId,
+                CreatedAt = TimeZoneHelper.Now
+            });
+
+            // Record cost history
+            if (unitPrice > 0)
+            {
+                _context.ProductCostHistories.Add(new ProductCostHistory
+                {
+                    ProductId = dto.ProductId,
+                    CompanyId = companyId,
+                    Cost = unitPrice,
+                    SupplierName = "Walk-in Supplier",
+                    Notes = $"Stock addition (Qty: {diff})",
+                    RecordedDate = TimeZoneHelper.Now
+                });
+            }
+
+            await _context.SaveChangesAsync();
+
+            // Post accounting entry
+            try
+            {
+                await _accountingService.PostSupplierInvoiceEntry(companyId, invoice.Id, invoice.TotalAmount, invoice.InvoiceDate);
+            }
+            catch { /* Accounting is optional */ }
+        }
+        else
+        {
+            // Regular stock adjustment movement
+            _context.InventoryMovements.Add(new InventoryMovement
+            {
+                CompanyId = companyId,
+                ProductId = dto.ProductId,
+                WarehouseId = dto.WarehouseId,
+                MovementType = "stock_adjustment",
+                Quantity = diff,
+                ReferenceType = "stock_adjustment",
+                ReferenceId = dto.ProductId,
+                Notes = $"[{dto.Reason ?? "No reason"}] {dto.AdjustmentType}: {oldQuantity} → {newQuantity} ({(diff >= 0 ? "+" : "")}{diff} {product.BaseUnit}){(dto.VariantId.HasValue ? $" [VariantId:{dto.VariantId}]" : "")}",
+                CreatedBy = employeeId,
+                CreatedAt = TimeZoneHelper.Now
+            });
+
+            await _context.SaveChangesAsync();
+        }
 
         return Ok(new { 
             message = "Stock adjusted successfully", 
@@ -1484,6 +1633,7 @@ public class StockAdjustmentDto
     public decimal BaseUnitQuantity { get; set; }
     public decimal? SecondUnitQuantity { get; set; }
     public string? Reason { get; set; }
+    public bool CreatePurchaseInvoice { get; set; } = false;
 }
 
 public class ProductVariantDto

@@ -1,0 +1,1 @@
+Get-Process -Name "CashVan.API","dotnet" -ErrorAction SilentlyContinue | Stop-Process -Force

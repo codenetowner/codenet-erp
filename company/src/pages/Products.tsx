@@ -179,10 +179,11 @@ export default function Products() {
     baseUnit: 'Piece', secondUnit: '', unitsPerSecond: 0, currency: 'USD', defaultWarehouseId: '',
     retailPrice: 0, wholesalePrice: 0, superWholesalePrice: 0, costPrice: 0,
     boxRetailPrice: 0, boxWholesalePrice: 0, boxSuperWholesalePrice: 0, boxCostPrice: 0,
-    lowStockAlert: 10, lowStockAlertBox: 0, isActive: true, showInOnlineShop: false, imageUrl: '',
+    isActive: true, showInOnlineShop: false, imageUrl: '',
     color: '', size: '', weight: '', length: '', height: '',
-    initialQuantity: 0, initialQuantityBox: 0, initialWarehouseId: ''
+    initialQuantity: 0, initialQuantityBox: 0
   })
+  const [existingProductStock, setExistingProductStock] = useState<{ baseQty: number; boxQty: number; warehouseName: string } | null>(null)
   
   // Quick Stock Adjust
   const [showQuickAdjust, setShowQuickAdjust] = useState(false)
@@ -411,6 +412,20 @@ export default function Products() {
 
   useEffect(() => { loadData() }, [])
 
+  // Auto-calculate second unit values when first unit values change
+  useEffect(() => {
+    if (showSecondUnit && formData.unitsPerSecond > 0) {
+      setFormData(prev => ({
+        ...prev,
+        initialQuantityBox: prev.initialQuantity * prev.unitsPerSecond,
+        boxCostPrice: parseFloat((prev.costPrice / prev.unitsPerSecond).toFixed(3)),
+        boxRetailPrice: parseFloat((prev.retailPrice / prev.unitsPerSecond).toFixed(3)),
+        boxWholesalePrice: parseFloat((prev.wholesalePrice / prev.unitsPerSecond).toFixed(3)),
+        boxSuperWholesalePrice: parseFloat((prev.superWholesalePrice / prev.unitsPerSecond).toFixed(3))
+      }))
+    }
+  }, [showSecondUnit, formData.initialQuantity, formData.costPrice, formData.retailPrice, formData.wholesalePrice, formData.superWholesalePrice, formData.unitsPerSecond])
+
   const loadData = async () => {
     try {
       setLoading(true)
@@ -465,12 +480,13 @@ export default function Products() {
       baseUnit: 'Piece', secondUnit: '', unitsPerSecond: 0, currency: 'USD', defaultWarehouseId: '',
       retailPrice: 0, wholesalePrice: 0, superWholesalePrice: 0, costPrice: 0,
       boxRetailPrice: 0, boxWholesalePrice: 0, boxSuperWholesalePrice: 0, boxCostPrice: 0,
-      lowStockAlert: 10, lowStockAlertBox: 0, isActive: true, showInOnlineShop: false, imageUrl: '',
+      isActive: true, showInOnlineShop: false, imageUrl: '',
       color: '', size: '', weight: '', length: '', height: '',
-      initialQuantity: 0, initialQuantityBox: 0, initialWarehouseId: ''
+      initialQuantity: 0, initialQuantityBox: 0
     })
     setShowAdvanced(false)
     setShowSecondUnit(false)
+    setExistingProductStock(null)
   }
 
   const openAddModal = () => {
@@ -478,7 +494,20 @@ export default function Products() {
     setProductSearchQuery('')
     setShowProductSearch(true)
     setProductSearchMode('new')
+    setExistingProductStock(null)
     setShowModal(true)
+  }
+
+  const loadProductStock = async (product: Product) => {
+    try {
+      const invRes = await productsApi.getInventory(product.id)
+      const totalQty = invRes.data.totalQuantity || 0
+      const whName = invRes.data.warehouseInventory?.[0]?.warehouseName || 'N/A'
+      const boxQty = (product.unitsPerSecond && product.unitsPerSecond > 0) ? totalQty * product.unitsPerSecond : 0
+      setExistingProductStock({ baseQty: totalQty, boxQty, warehouseName: whName })
+    } catch {
+      setExistingProductStock({ baseQty: 0, boxQty: 0, warehouseName: 'N/A' })
+    }
   }
 
   const handleProductSearch = (query: string) => {
@@ -495,6 +524,7 @@ export default function Products() {
       fillFormFromProduct(found)
       setSelectedProduct(found)
       setProductSearchMode('existing')
+      loadProductStock(found)
     }
   }
 
@@ -520,8 +550,6 @@ export default function Products() {
       boxWholesalePrice: product.boxWholesalePrice || 0,
       boxSuperWholesalePrice: product.boxSuperWholesalePrice || 0,
       boxCostPrice: product.boxCostPrice || 0,
-      lowStockAlert: product.lowStockAlert || 10,
-      lowStockAlertBox: product.lowStockAlertBox || 0,
       isActive: product.isActive,
       showInOnlineShop: product.showInOnlineShop || false,
       imageUrl: product.imageUrl || '',
@@ -531,8 +559,7 @@ export default function Products() {
       length: product.length?.toString() || '',
       height: product.height?.toString() || '',
       initialQuantity: 0,
-      initialQuantityBox: 0,
-      initialWarehouseId: product.defaultWarehouseId?.toString() || ''
+      initialQuantityBox: 0
     })
     setShowAdvanced(true)
     setShowSecondUnit(!!(product.secondUnit && product.secondUnit.trim() !== '' && product.unitsPerSecond > 0))
@@ -546,9 +573,7 @@ export default function Products() {
     setSelectedProduct(product)
     setProductSearchMode('existing')
     setShowProductSearch(false)
-    // Switch to edit mode
-    setShowModal(false)
-    setShowEditModal(true)
+    loadProductStock(product)
   }
 
   const startNewProduct = () => {
@@ -571,28 +596,57 @@ export default function Products() {
     e.preventDefault()
     
     // Validate initial quantity requires warehouse
-    if (formData.initialQuantity > 0 && !formData.initialWarehouseId) {
-      alert('Please select a warehouse for the initial inventory')
+    if ((formData.initialQuantity > 0 || formData.initialQuantityBox > 0) && !formData.defaultWarehouseId) {
+      alert('Please select a warehouse to add stock')
       return
     }
     
     setSaving(true)
     try {
-      await productsApi.create({
-        ...formData,
-        categoryId: formData.categoryId ? parseInt(formData.categoryId) : null,
-        defaultWarehouseId: formData.defaultWarehouseId ? parseInt(formData.defaultWarehouseId) : null,
-        initialQuantity: formData.initialQuantity || 0,
-        initialWarehouseId: formData.initialWarehouseId ? parseInt(formData.initialWarehouseId) : null,
-        weight: formData.weight ? parseFloat(formData.weight as string) : null,
-        length: formData.length ? parseFloat(formData.length as string) : null,
-        height: formData.height ? parseFloat(formData.height as string) : null,
-      })
+      if (selectedProduct && productSearchMode === 'existing') {
+        // Existing product: update product info (exclude stock fields - handled by adjustStock)
+        const { initialQuantity: _iq, initialQuantityBox: _iqb, ...updateData } = formData
+        await productsApi.update(selectedProduct.id, {
+          ...updateData,
+          categoryId: formData.categoryId ? parseInt(formData.categoryId) : null,
+          defaultWarehouseId: formData.defaultWarehouseId ? parseInt(formData.defaultWarehouseId) : null,
+          initialQuantity: 0,
+          initialWarehouseId: null,
+          weight: formData.weight ? parseFloat(formData.weight as string) : null,
+          length: formData.length ? parseFloat(formData.length as string) : null,
+          height: formData.height ? parseFloat(formData.height as string) : null,
+        })
+        // Increment stock if quantity entered (creates walk-in supplier purchase invoice)
+        if ((formData.initialQuantity > 0 || formData.initialQuantityBox > 0) && formData.defaultWarehouseId) {
+          await productsApi.adjustStock({
+            productId: selectedProduct.id,
+            warehouseId: parseInt(formData.defaultWarehouseId),
+            variantId: null,
+            adjustmentType: 'add',
+            baseUnitQuantity: formData.initialQuantity || 0,
+            secondUnitQuantity: formData.initialQuantityBox > 0 ? formData.initialQuantityBox : null,
+            reason: 'Stock added from Products page',
+            createPurchaseInvoice: true,
+          })
+        }
+      } else {
+        // New product: create with initial quantity
+        await productsApi.create({
+          ...formData,
+          categoryId: formData.categoryId ? parseInt(formData.categoryId) : null,
+          defaultWarehouseId: formData.defaultWarehouseId ? parseInt(formData.defaultWarehouseId) : null,
+          initialQuantity: formData.initialQuantity || 0,
+          initialWarehouseId: formData.defaultWarehouseId ? parseInt(formData.defaultWarehouseId) : null,
+          weight: formData.weight ? parseFloat(formData.weight as string) : null,
+          length: formData.length ? parseFloat(formData.length as string) : null,
+          height: formData.height ? parseFloat(formData.height as string) : null,
+        })
+      }
       setShowModal(false)
       resetForm()
       loadData()
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to create product')
+      alert(error.response?.data?.message || 'Failed to save product')
     } finally {
       setSaving(false)
     }
@@ -602,16 +656,7 @@ export default function Products() {
     setSelectedProduct(prod)
     const hasSecondUnit = !!(prod.secondUnit && prod.secondUnit.trim() !== '' && prod.unitsPerSecond > 0)
     setShowSecondUnit(hasSecondUnit)
-
-    // Load current inventory quantity for the default warehouse
-    let currentQty = 0
-    if (prod.defaultWarehouseId) {
-      try {
-        const invRes = await productsApi.getInventory(prod.id)
-        const whInv = invRes.data.warehouseInventory?.find((w: any) => w.warehouseId === prod.defaultWarehouseId)
-        if (whInv) currentQty = whInv.quantity
-      } catch {}
-    }
+    setExistingProductStock(null)
 
     setFormData({
       sku: prod.sku,
@@ -634,8 +679,6 @@ export default function Products() {
       boxWholesalePrice: prod.boxWholesalePrice,
       boxSuperWholesalePrice: prod.boxSuperWholesalePrice,
       boxCostPrice: prod.boxCostPrice,
-      lowStockAlert: prod.lowStockAlert,
-      lowStockAlertBox: prod.lowStockAlertBox || 0,
       isActive: prod.isActive,
       showInOnlineShop: prod.showInOnlineShop || false,
       imageUrl: prod.imageUrl || '',
@@ -644,9 +687,8 @@ export default function Products() {
       weight: prod.weight?.toString() || '',
       length: prod.length?.toString() || '',
       height: prod.height?.toString() || '',
-      initialQuantity: currentQty,
-      initialQuantityBox: (prod.unitsPerSecond && prod.unitsPerSecond > 0) ? Math.floor(currentQty / prod.unitsPerSecond) : 0,
-      initialWarehouseId: prod.defaultWarehouseId?.toString() || ''
+      initialQuantity: 0,
+      initialQuantityBox: 0
     })
     setShowEditModal(true)
   }
@@ -660,7 +702,6 @@ export default function Products() {
         ...formData,
         categoryId: formData.categoryId ? parseInt(formData.categoryId) : null,
         defaultWarehouseId: formData.defaultWarehouseId ? parseInt(formData.defaultWarehouseId) : null,
-        initialWarehouseId: formData.initialWarehouseId ? parseInt(formData.initialWarehouseId) : null,
         weight: formData.weight ? parseFloat(formData.weight as string) : null,
         length: formData.length ? parseFloat(formData.length as string) : null,
         height: formData.height ? parseFloat(formData.height as string) : null,
@@ -1253,7 +1294,7 @@ export default function Products() {
           </PermissionGate>
           <PermissionGate permission={PERMISSIONS.CREATE_PRODUCTS}>
             <button onClick={openAddModal} className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600">
-              <Plus size={20} /> Add Product
+              <Plus size={20} /> Add or Edit Product
             </button>
           </PermissionGate>
         </div>
@@ -1432,6 +1473,7 @@ export default function Products() {
                   <div className="text-xs font-medium text-blue-600 mb-1">{product.baseUnit}</div>
                   <div>R: {product.currency} {product.retailPrice.toFixed(3)}</div>
                   <div className="text-gray-500">W: {product.currency} {product.wholesalePrice.toFixed(3)}</div>
+                  <div className="text-gray-500">S: {product.currency} {product.superWholesalePrice.toFixed(3)}</div>
                   <div className="text-gray-500">C: {product.currency} {product.costPrice.toFixed(3)}</div>
                 </td>
                 <td className="px-3 py-3 text-sm">
@@ -1440,6 +1482,7 @@ export default function Products() {
                       <div className="text-xs font-medium text-blue-600 mb-1">{product.secondUnit}</div>
                       <div>R: {product.currency} {product.boxRetailPrice.toFixed(3)}</div>
                       <div className="text-gray-500">W: {product.currency} {product.boxWholesalePrice.toFixed(3)}</div>
+                      <div className="text-gray-500">S: {product.currency} {product.boxSuperWholesalePrice.toFixed(3)}</div>
                       <div className="text-gray-500">C: {product.currency} {product.boxCostPrice.toFixed(3)}</div>
                     </>
                   ) : (
@@ -1473,9 +1516,6 @@ export default function Products() {
                     </button>
                     <PermissionGate permission={PERMISSIONS.ADJUST_STOCK_LEVELS}>
                       <button onClick={() => handleQuickAdjust(product)} className="p-1 text-orange-600 hover:bg-orange-50 rounded" title="Adjust Stock"><ArrowUpDown size={16} /></button>
-                    </PermissionGate>
-                    <PermissionGate permission={PERMISSIONS.EDIT_PRODUCTS}>
-                      <button onClick={() => handleEdit(product)} className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="Edit"><Edit size={16} /></button>
                     </PermissionGate>
                     <PermissionGate permission={PERMISSIONS.DELETE_PRODUCTS}>
                       <button onClick={() => handleDelete(product.id)} className="p-1 text-red-600 hover:bg-red-50 rounded" title="Delete"><Trash2 size={16} /></button>
@@ -1570,138 +1610,233 @@ export default function Products() {
               </div>
             )}
 
-            <form onSubmit={showEditModal ? handleEditSubmit : handleAdd} className="p-4 overflow-y-auto max-h-[calc(90vh-120px)] space-y-3">
-              {/* Back to Search button - Only show for Add modal */}
+            <form onSubmit={showEditModal ? handleEditSubmit : handleAdd} className="p-6 space-y-4 overflow-y-auto max-h-[calc(90vh-120px)]">
+              {/* Back to Search button */}
               {showModal && !showEditModal && !showProductSearch && (
-                <button type="button" onClick={() => { setShowProductSearch(true); setProductSearchQuery('') }} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
-                  <Search size={12} /> Search for existing product
+                <button type="button" onClick={() => { setShowProductSearch(true); setProductSearchQuery('') }} className="text-sm text-blue-600 hover:underline flex items-center gap-1 mb-2">
+                  <Search size={14} /> Search for existing product
                 </button>
               )}
-              
-              {/* Basic Info Row */}
-              <div className="flex gap-3">
-                {/* Image */}
-                <div className="flex-shrink-0">
-                  {formData.imageUrl ? (
-                    <div className="relative">
-                      <img src={formData.imageUrl} alt="Product" className="w-16 h-16 object-cover rounded-lg border" />
-                      <button type="button" onClick={() => setFormData({...formData, imageUrl: ''})} className="absolute -top-1 -right-1 p-0.5 bg-red-500 text-white rounded-full hover:bg-red-600"><X size={10} /></button>
+
+              {/* Current Stock Info - Show when existing product is selected */}
+              {existingProductStock && selectedProduct && productSearchMode === 'existing' && (
+                <div className="border border-blue-200 rounded-lg p-3 bg-blue-50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Package size={16} className="text-blue-600" />
+                    <span className="text-sm font-semibold text-blue-800">Current Stock: {selectedProduct.name}</span>
+                  </div>
+                  <div className="flex gap-4 text-sm">
+                    <div className="bg-white px-3 py-1.5 rounded-lg border border-blue-200">
+                      <span className="text-gray-500">{selectedProduct.baseUnit}s:</span>{' '}
+                      <span className="font-bold text-blue-700">{existingProductStock.baseQty}</span>
                     </div>
-                  ) : (
-                    <div className="w-16 h-16 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50 cursor-pointer hover:bg-gray-100" onClick={() => fileInputRef.current?.click()}>
-                      {uploadingImage ? <Loader2 size={20} className="animate-spin text-gray-400" /> : <Image size={20} className="text-gray-400" />}
-                    </div>
-                  )}
-                  <input type="file" ref={fileInputRef} accept="image/*" onChange={handleImageUpload} className="hidden" />
+                    {selectedProduct.secondUnit && selectedProduct.unitsPerSecond > 0 && (
+                      <div className="bg-white px-3 py-1.5 rounded-lg border border-blue-200">
+                        <span className="text-gray-500">{selectedProduct.secondUnit}s:</span>{' '}
+                        <span className="font-bold text-blue-700">{existingProductStock.boxQty}</span>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-blue-600 mt-2">Enter quantity below to add to existing stock</p>
                 </div>
-                {/* Name, Arabic Name, Category, Warehouse */}
-                <div className="flex-1 grid grid-cols-5 gap-2">
+              )}
+              
+              {/* Public Info */}
+              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50/50 space-y-4">
+                <div className="text-sm font-semibold text-gray-700">Public Info</div>
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-0.5">Name *</label>
-                    <input type="text" required value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg" placeholder="Product name" />
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Product Name *</label>
+                    <input type="text" required value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" placeholder="Enter product name" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-0.5">الاسم بالعربي</label>
-                    <input type="text" value={formData.nameAr} onChange={(e) => setFormData({...formData, nameAr: e.target.value})} className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg text-right" dir="rtl" placeholder="اسم المنتج" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-0.5">Category</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Category</label>
                     <div className="flex gap-1">
-                      <select value={formData.categoryId} onChange={(e) => setFormData({...formData, categoryId: e.target.value})} className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded-lg">
-                        <option value="">Select</option>
+                      <select value={formData.categoryId} onChange={(e) => setFormData({...formData, categoryId: e.target.value})} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-white">
+                        <option value="">Select Category</option>
                         {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                       </select>
-                      <button type="button" onClick={() => setShowQuickCategory(true)} className="px-2 py-1.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600"><Plus size={14} /></button>
+                      <button type="button" onClick={() => setShowQuickCategory(true)} className="px-2 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600"><Plus size={14} /></button>
                     </div>
                   </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-0.5">Warehouse</label>
-                    <select value={formData.defaultWarehouseId} onChange={(e) => setFormData({...formData, defaultWarehouseId: e.target.value})} className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg">
-                      <option value="">Select</option>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Warehouse</label>
+                    <select value={formData.defaultWarehouseId} onChange={(e) => setFormData({...formData, defaultWarehouseId: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white">
+                      <option value="">Select Warehouse</option>
                       {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                     </select>
                   </div>
-                </div>
-              </div>
-
-              {/* Settings Row */}
-              <div className="flex items-center gap-6 py-2 px-3 bg-slate-50 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-slate-600">Unit:</span>
-                  <select value={formData.baseUnit} onChange={(e) => setFormData({...formData, baseUnit: e.target.value})} className="px-2 py-1 text-sm border border-slate-300 rounded-md bg-white">
-                    {units.length > 0 ? units.map(u => <option key={u.id} value={u.name}>{u.name}</option>) : (
-                      <><option value="Piece">Piece</option><option value="Box">Box</option><option value="Kg">Kg</option></>
-                    )}
-                  </select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-slate-600">Currency:</span>
-                  <select value={formData.currency} onChange={(e) => setFormData({...formData, currency: e.target.value})} className="px-2 py-1 text-sm border border-slate-300 rounded-md bg-white">
-                    {currencies.filter(c => c.isActive).length > 0 ? currencies.filter(c => c.isActive).map(c => <option key={c.id} value={c.code}>{c.code}</option>) : (
-                      <><option value="USD">USD</option><option value="LBP">LBP</option><option value="EUR">EUR</option></>
-                    )}
-                  </select>
-                </div>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={formData.isActive} onChange={(e) => setFormData({...formData, isActive: e.target.checked})} className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
-                  <span className="text-xs text-slate-600">Active</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={formData.showInOnlineShop} onChange={(e) => setFormData({...formData, showInOnlineShop: e.target.checked})} className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
-                  <span className="text-xs text-slate-600">Online Shop</span>
-                </label>
-                <button type="button" onClick={() => { if (showSecondUnit) { setFormData({...formData, secondUnit: '', unitsPerSecond: 0, boxBarcode: '', boxRetailPrice: 0, boxWholesalePrice: 0, boxSuperWholesalePrice: 0, boxCostPrice: 0, lowStockAlertBox: 0}) } else { setFormData({...formData, secondUnit: 'Box', unitsPerSecond: 0}) } setShowSecondUnit(!showSecondUnit) }} className={`ml-auto px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors ${showSecondUnit ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200' : 'bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200'}`}>
-                  {showSecondUnit ? <><X size={14} /> Remove Box Unit</> : <><Plus size={14} /> Add Box Unit</>}
-                </button>
-              </div>
-
-              {/* Codes & Pricing Section */}
-              <div className="grid grid-cols-2 gap-4">
-                {/* Left Column - Codes */}
-                <div className="space-y-3">
-                  <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Identification</h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">SKU Code</label>
-                      <input type="text" value={formData.sku} onChange={(e) => setFormData({...formData, sku: e.target.value})} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" placeholder="e.g. PRD-001" />
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Currency</label>
+                    <select value={formData.currency} onChange={(e) => setFormData({...formData, currency: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white">
+                      {currencies.filter(c => c.isActive).length > 0 ? currencies.filter(c => c.isActive).map(c => <option key={c.id} value={c.code}>{c.code}</option>) : (
+                        <><option value="USD">USD</option><option value="LBP">LBP</option><option value="EUR">EUR</option></>
+                      )}
+                    </select>
+                  </div>
+                  <div className="flex items-end">
+                    <div className="flex items-center gap-2 w-full px-3 py-2 border border-gray-300 rounded-lg bg-white">
+                      <input type="checkbox" id="productActiveProducts" checked={formData.isActive} onChange={(e) => setFormData({...formData, isActive: e.target.checked})} className="rounded" />
+                      <label htmlFor="productActiveProducts" className="text-sm font-semibold text-gray-700">Active</label>
                     </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1 flex justify-between">
-                        <span>Barcode</span>
-                        <button type="button" onClick={() => setFormData({...formData, barcode: generateBarcode()})} className="px-2 py-0.5 text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white rounded-md flex items-center gap-1 transition-colors"><Barcode size={10} />Generate</button>
-                      </label>
-                      <input type="text" value={formData.barcode} onChange={(e) => setFormData({...formData, barcode: e.target.value})} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" placeholder="Scan or enter" />
-                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">الاسم بالعربي</label>
+                    <input type="text" value={formData.nameAr} onChange={(e) => setFormData({...formData, nameAr: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-right" dir="rtl" placeholder="اسم المنتج" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Min Stock Alert</label>
-                    <input type="number" min="0" value={formData.lowStockAlert} onChange={(e) => setFormData({...formData, lowStockAlert: parseInt(e.target.value) || 0})} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Image</label>
+                    <div className="flex items-center gap-2">
+                      {formData.imageUrl ? (
+                        <div className="relative">
+                          <img src={formData.imageUrl} alt="Product" className="w-10 h-10 object-cover rounded-lg border" />
+                          <button type="button" onClick={() => setFormData({...formData, imageUrl: ''})} className="absolute -top-1 -right-1 p-0.5 bg-red-500 text-white rounded-full hover:bg-red-600"><X size={10} /></button>
+                        </div>
+                      ) : (
+                        <div className="w-10 h-10 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-white cursor-pointer hover:bg-gray-100" onClick={() => fileInputRef.current?.click()}>
+                          {uploadingImage ? <Loader2 size={16} className="animate-spin text-gray-400" /> : <Image size={16} className="text-gray-400" />}
+                        </div>
+                      )}
+                      <input type="file" ref={fileInputRef} accept="image/*" onChange={handleImageUpload} className="hidden" />
+                      <button type="button" onClick={() => fileInputRef.current?.click()} className="text-sm text-blue-600 hover:underline">Upload</button>
+                    </div>
                   </div>
-                </div>
-
-                {/* Right Column - Pricing */}
-                <div className="space-y-3">
-                  <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Pricing</h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Cost Price</label>
-                      <input type="number" step="0.01" value={formData.costPrice} onChange={(e) => setFormData({...formData, costPrice: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" placeholder="0.00" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Retail Price</label>
-                      <input type="number" step="0.01" value={formData.retailPrice} onChange={(e) => setFormData({...formData, retailPrice: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" placeholder="0.00" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Wholesale</label>
-                      <input type="number" step="0.01" value={formData.wholesalePrice} onChange={(e) => setFormData({...formData, wholesalePrice: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" placeholder="0.00" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Super Wholesale</label>
-                      <input type="number" step="0.01" value={formData.superWholesalePrice} onChange={(e) => setFormData({...formData, superWholesalePrice: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" placeholder="0.00" />
+                  <div className="flex items-end">
+                    <div className="flex items-center gap-2 w-full px-3 py-2 border border-gray-300 rounded-lg bg-white">
+                      <input type="checkbox" id="productOnlineShop" checked={formData.showInOnlineShop} onChange={(e) => setFormData({...formData, showInOnlineShop: e.target.checked})} className="rounded" />
+                      <label htmlFor="productOnlineShop" className="text-sm font-semibold text-gray-700">Online Shop</label>
                     </div>
                   </div>
                 </div>
               </div>
+
+              {/* First Unit Configuration */}
+              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50/50 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-semibold text-gray-700">First Unit Configuration</div>
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      if (showSecondUnit) {
+                        setFormData({...formData, secondUnit: '', unitsPerSecond: 0, boxBarcode: '', boxRetailPrice: 0, boxWholesalePrice: 0, boxSuperWholesalePrice: 0, boxCostPrice: 0, initialQuantityBox: 0})
+                      } else {
+                        setFormData({...formData, secondUnit: 'Box', unitsPerSecond: 0})
+                      }
+                      setShowSecondUnit(!showSecondUnit)
+                    }} 
+                    className={`px-3 py-1.5 text-sm border rounded-lg flex items-center gap-2 transition-colors ${
+                      showSecondUnit 
+                        ? 'border-red-300 text-red-600 hover:bg-red-50' 
+                        : 'border-blue-300 text-blue-600 hover:bg-blue-50'
+                    }`}
+                  >
+                    {showSecondUnit ? (
+                      <><X size={14} /> Remove Second Unit</>
+                    ) : (
+                      <><Plus size={14} /> Add Second Unit</>
+                    )}
+                  </button>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">SKU *</label>
+                    <input type="text" value={formData.sku} onChange={(e) => setFormData({...formData, sku: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" placeholder="Enter SKU" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Barcode</label>
+                    <input type="text" value={formData.barcode} onChange={(e) => setFormData({...formData, barcode: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" placeholder="Enter barcode" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Unit</label>
+                    <select value={formData.baseUnit} onChange={(e) => setFormData({...formData, baseUnit: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white">
+                      {units.length > 0 ? units.map(u => <option key={u.id} value={u.name}>{u.name}</option>) : (
+                        <>
+                          <option value="Piece">Piece</option>
+                          <option value="Box">Box</option>
+                          <option value="Kg">Kg</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-5 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Quantity</label>
+                    <input type="number" min="0" value={formData.initialQuantity} onChange={(e) => setFormData({...formData, initialQuantity: parseInt(e.target.value) || 0})} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" placeholder="0" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Cost Price</label>
+                    <input type="number" step="0.01" value={formData.costPrice} onChange={(e) => setFormData({...formData, costPrice: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Retail Price</label>
+                    <input type="number" step="0.01" value={formData.retailPrice} onChange={(e) => setFormData({...formData, retailPrice: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Wholesale</label>
+                    <input type="number" step="0.01" value={formData.wholesalePrice} onChange={(e) => setFormData({...formData, wholesalePrice: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Super Wholesale</label>
+                    <input type="number" step="0.01" value={formData.superWholesalePrice} onChange={(e) => setFormData({...formData, superWholesalePrice: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Second Unit Configuration - Only shown when enabled */}
+              {showSecondUnit && (
+                <div className="border border-blue-200 rounded-lg p-4 bg-blue-50/50 space-y-4">
+                  <div className="text-sm font-semibold text-blue-700">Second Unit Configuration</div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">1 {formData.baseUnit} = X {formData.secondUnit || 'Piece'}s</label>
+                      <input type="number" min="1" value={formData.unitsPerSecond} onChange={(e) => setFormData({...formData, unitsPerSecond: parseInt(e.target.value) || 0})} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" placeholder="e.g. 12" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Barcode</label>
+                      <input type="text" value={formData.boxBarcode} onChange={(e) => setFormData({...formData, boxBarcode: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" placeholder="Optional" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Unit</label>
+                      <select value={formData.secondUnit} onChange={(e) => setFormData({...formData, secondUnit: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white">
+                        {units.length > 0 ? units.map(u => <option key={u.id} value={u.name}>{u.name}</option>) : (
+                          <>
+                            <option value="Box">Box</option>
+                            <option value="Carton">Carton</option>
+                            <option value="Pack">Pack</option>
+                          </>
+                        )}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-5 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Quantity</label>
+                      <input type="number" min="0" value={formData.initialQuantityBox} onChange={(e) => setFormData({...formData, initialQuantityBox: parseInt(e.target.value) || 0})} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" placeholder="0" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Cost Price</label>
+                      <input type="number" step="0.01" min="0" value={formData.boxCostPrice} onChange={(e) => setFormData({...formData, boxCostPrice: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Retail Price</label>
+                      <input type="number" step="0.01" min="0" value={formData.boxRetailPrice} onChange={(e) => setFormData({...formData, boxRetailPrice: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Wholesale</label>
+                      <input type="number" step="0.01" min="0" value={formData.boxWholesalePrice} onChange={(e) => setFormData({...formData, boxWholesalePrice: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Super Wholesale</label>
+                      <input type="number" step="0.01" min="0" value={formData.boxSuperWholesalePrice} onChange={(e) => setFormData({...formData, boxSuperWholesalePrice: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Optional Attributes - Collapsible */}
               <details className="group">
@@ -1733,85 +1868,7 @@ export default function Products() {
                 </div>
               </details>
 
-              {/* Second Unit Configuration */}
-              {showSecondUnit && (
-                <div className="border border-blue-200 rounded-lg p-4 bg-blue-50/30">
-                  <div className="flex items-center gap-3 mb-4 pb-3 border-b border-blue-200">
-                    <h4 className="text-sm font-semibold text-blue-700">Box/Carton Unit</h4>
-                    <select value={formData.secondUnit} onChange={(e) => setFormData({...formData, secondUnit: e.target.value})} className="px-2 py-1 text-sm border border-blue-300 rounded-md bg-white">
-                      {units.length > 0 ? units.map(u => <option key={u.id} value={u.name}>{u.name}</option>) : (
-                        <><option value="Box">Box</option><option value="Carton">Carton</option><option value="Pack">Pack</option></>
-                      )}
-                    </select>
-                    <span className="text-sm text-slate-600">=</span>
-                    <input type="number" min="1" value={formData.unitsPerSecond} onChange={(e) => setFormData({...formData, unitsPerSecond: parseInt(e.target.value) || 0})} className="w-16 px-2 py-1 text-sm border border-blue-300 rounded-md bg-white text-center" placeholder="0" />
-                    <span className="text-sm text-slate-600">{formData.baseUnit}s per {formData.secondUnit || 'Box'}</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1 flex justify-between">
-                          <span>Box Barcode</span>
-                          <button type="button" onClick={() => setFormData({...formData, boxBarcode: generateBarcode()})} className="px-2 py-0.5 text-[10px] bg-emerald-500 hover:bg-emerald-600 text-white rounded-md flex items-center gap-1 transition-colors"><Barcode size={10} />Generate</button>
-                        </label>
-                        <input type="text" value={formData.boxBarcode} onChange={(e) => setFormData({...formData, boxBarcode: e.target.value})} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" placeholder="Scan or enter" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Min Stock Alert</label>
-                        <input type="number" min="0" value={formData.lowStockAlertBox} onChange={(e) => setFormData({...formData, lowStockAlertBox: parseInt(e.target.value) || 0})} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Cost Price</label>
-                        <input type="number" step="0.01" value={formData.boxCostPrice} onChange={(e) => setFormData({...formData, boxCostPrice: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" placeholder="0.00" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Retail Price</label>
-                        <input type="number" step="0.01" value={formData.boxRetailPrice} onChange={(e) => setFormData({...formData, boxRetailPrice: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" placeholder="0.00" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Wholesale</label>
-                        <input type="number" step="0.01" value={formData.boxWholesalePrice} onChange={(e) => setFormData({...formData, boxWholesalePrice: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" placeholder="0.00" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1">Super Wholesale</label>
-                        <input type="number" step="0.01" value={formData.boxSuperWholesalePrice} onChange={(e) => setFormData({...formData, boxSuperWholesalePrice: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg" placeholder="0.00" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Initial Inventory - Only for Add Product, not Edit */}
-              {!showEditModal && (
-                <div className="border rounded-lg p-3 border-green-200 bg-green-50/50">
-                  <div className="text-xs font-semibold mb-2 text-green-700">
-                    Initial Inventory (Optional)
-                  </div>
-                  <div className={`grid gap-3 ${showSecondUnit ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-0.5">Qty ({formData.baseUnit}s)</label>
-                      <input type="number" min="0" value={formData.initialQuantity} onChange={(e) => setFormData({...formData, initialQuantity: parseInt(e.target.value) || 0})} className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg" placeholder="0" />
-                    </div>
-                    {showSecondUnit && (
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-0.5">Qty ({formData.secondUnit}s)</label>
-                        <input type="number" min="0" value={formData.initialQuantityBox} onChange={(e) => setFormData({...formData, initialQuantityBox: parseInt(e.target.value) || 0})} className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg" placeholder="0" />
-                      </div>
-                    )}
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-0.5">Warehouse</label>
-                      <select value={formData.initialWarehouseId} onChange={(e) => setFormData({...formData, initialWarehouseId: e.target.value})} className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg">
-                        <option value="">Select warehouse</option>
-                        {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-2 pt-2">
+              <div className="flex gap-3 pt-4">
                 <button type="button" onClick={() => { setShowModal(false); setShowEditModal(false) }} className="flex-1 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
                 <button type="submit" disabled={saving} className="flex-1 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 disabled:opacity-50">
                   {saving ? 'Saving...' : 'Save'}
