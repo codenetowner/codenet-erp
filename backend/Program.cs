@@ -2,10 +2,22 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.Hosting.WindowsServices;
 using Catalyst.API.Data;
 using Catalyst.API.Services;
 
-var builder = WebApplication.CreateBuilder(args);
+var options = new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = WindowsServiceHelpers.IsWindowsService() 
+        ? AppContext.BaseDirectory 
+        : default
+};
+
+var builder = WebApplication.CreateBuilder(options);
+
+// Enable Windows Service support
+builder.Host.UseWindowsService();
 
 // Configure Npgsql to handle DateTime with legacy timestamp behavior
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
@@ -241,4 +253,5 @@ app.MapGet("/api/health", () => new { status = "healthy", service = "Catalyst AP
 // SPA fallback - serve index.html for non-API routes
 app.MapFallbackToFile("index.html");
 
-app.Run();
+// Bind to port 5227 explicitly (launchSettings.json only works with dotnet run)
+app.Run("http://0.0.0.0:5227");

@@ -88,12 +88,16 @@ public class InstallerForm : Form
     
     private void CheckPostgresInstalled()
     {
-        // Check common PostgreSQL paths
+        // Check common PostgreSQL paths (versions 13-18)
         string[] possiblePaths = {
+            @"C:\Program Files\PostgreSQL\18\bin\psql.exe",
+            @"C:\Program Files\PostgreSQL\17\bin\psql.exe",
             @"C:\Program Files\PostgreSQL\16\bin\psql.exe",
             @"C:\Program Files\PostgreSQL\15\bin\psql.exe",
             @"C:\Program Files\PostgreSQL\14\bin\psql.exe",
             @"C:\Program Files\PostgreSQL\13\bin\psql.exe",
+            @"C:\Program Files (x86)\PostgreSQL\18\bin\psql.exe",
+            @"C:\Program Files (x86)\PostgreSQL\17\bin\psql.exe",
             @"C:\Program Files (x86)\PostgreSQL\16\bin\psql.exe",
             @"C:\Program Files (x86)\PostgreSQL\15\bin\psql.exe",
         };
@@ -960,7 +964,35 @@ when internet is available.",
         {
             progressBar.Value = 0;
             
-            // Step 0: Copy source files to install location
+            // Step 0a: Stop existing CatalystAPI service if running (to unlock files)
+            Log("Stopping existing service (if any)...");
+            progressLabel.Text = "Stopping existing service...";
+            try
+            {
+                var stopProc = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "sc.exe",
+                        Arguments = "stop CatalystAPI",
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        RedirectStandardOutput = true
+                    }
+                };
+                stopProc.Start();
+                stopProc.WaitForExit(10000);
+                // Also kill any lingering backend process
+                foreach (var proc in Process.GetProcessesByName("CashVan.API"))
+                {
+                    try { proc.Kill(); proc.WaitForExit(5000); } catch { }
+                }
+                await Task.Delay(2000); // Wait for files to be released
+                Log("Existing service stopped.");
+            }
+            catch { Log("No existing service found."); }
+            
+            // Step 0b: Copy source files to install location
             Log($"Copying files to {installPath}...");
             progressLabel.Text = "Copying files...";
             await CopySourceFiles();
@@ -1064,31 +1096,17 @@ when internet is available.",
                 Directory.CreateDirectory(installPath);
             }
             
-            // Copy backend folder
+            // Copy backend folder (includes frontend in wwwroot)
             var srcBackend = Path.Combine(sourcePath, "backend");
             var dstBackend = Path.Combine(installPath, "backend");
-            if (Directory.Exists(srcBackend) && !Directory.Exists(dstBackend))
+            if (Directory.Exists(srcBackend))
             {
+                if (Directory.Exists(dstBackend))
+                {
+                    Directory.Delete(dstBackend, true);
+                }
                 CopyDirectory(srcBackend, dstBackend);
-                Log("Backend files copied.");
-            }
-            
-            // Copy company folder
-            var srcCompany = Path.Combine(sourcePath, "company");
-            var dstCompany = Path.Combine(installPath, "company");
-            if (Directory.Exists(srcCompany) && !Directory.Exists(dstCompany))
-            {
-                CopyDirectory(srcCompany, dstCompany);
-                Log("Company portal files copied.");
-            }
-            
-            // Copy desktop-app folder (WebView2 app)
-            var srcDesktop = Path.Combine(sourcePath, "desktop-app", "publish");
-            var dstDesktop = Path.Combine(installPath, "desktop-app");
-            if (Directory.Exists(srcDesktop) && !Directory.Exists(dstDesktop))
-            {
-                CopyDirectory(srcDesktop, dstDesktop);
-                Log("Desktop app files copied.");
+                Log("Backend files copied (includes frontend in wwwroot).");
             }
             
             // Copy schema file if exists
@@ -1320,122 +1338,24 @@ when internet is available.",
     
     private void ConfigurePortals()
     {
-        var envContent = @"# Offline/Local Configuration
-VITE_API_URL=/api
-";
-        
-        // Only configure company portal (admin is online-only)
-        var envPath = Path.Combine(installPath, "company", ".env.local");
-        System.IO.File.WriteAllText(envPath, envContent);
-        Log("Company portal configured.");
+        // Frontend is already built and configured in desktop-app/renderer
+        // No need to configure company folder - source code is not included
+        Log("Frontend already configured (built into desktop app).");
     }
     
     private async Task InstallNpmDependencies()
     {
-        try
-        {
-            var companyPath = Path.Combine(installPath, "company");
-            var nodeModulesPath = Path.Combine(companyPath, "node_modules");
-            
-            // Delete existing node_modules to ensure clean install
-            if (Directory.Exists(nodeModulesPath))
-            {
-                Log("Removing old node_modules...");
-                Directory.Delete(nodeModulesPath, true);
-            }
-            
-            var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "cmd.exe",
-                    Arguments = "/c npm install",
-                    WorkingDirectory = companyPath,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true
-                }
-            };
-            process.Start();
-            await process.WaitForExitAsync();
-            
-            if (process.ExitCode == 0)
-            {
-                Log("Frontend dependencies installed.");
-            }
-            else
-            {
-                var error = await process.StandardError.ReadToEndAsync();
-                Log($"npm install warning: {error}");
-            }
-            
-            // Create .env file for local API URL
-            var envFile = Path.Combine(companyPath, ".env");
-            System.IO.File.WriteAllText(envFile, "VITE_API_URL=http://localhost:5227/api");
-            Log("Frontend environment configured for local backend.");
-        }
-        catch (Exception ex)
-        {
-            Log($"npm install error: {ex.Message}");
-        }
+        // Source code is not included - frontend is already built
+        // No npm install needed
+        await Task.CompletedTask;
+        Log("Frontend already built (npm install not needed).");
     }
     
     private async Task BuildFrontendForDesktopApp()
     {
-        try
-        {
-            var companyPath = Path.Combine(installPath, "company");
-            var desktopPath = Path.Combine(installPath, "desktop-app");
-            var rendererPath = Path.Combine(desktopPath, "renderer");
-            
-            // Create .env.production.local for local API
-            var envFile = Path.Combine(companyPath, ".env.production.local");
-            System.IO.File.WriteAllText(envFile, "VITE_API_URL=http://localhost:5227/api");
-            
-            // Build frontend
-            var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "cmd.exe",
-                    Arguments = "/c npm run build",
-                    WorkingDirectory = companyPath,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true
-                }
-            };
-            process.Start();
-            await process.WaitForExitAsync();
-            
-            if (process.ExitCode == 0)
-            {
-                Log("Frontend built successfully.");
-                
-                // Copy dist to desktop-app/renderer
-                var distPath = Path.Combine(companyPath, "dist");
-                if (Directory.Exists(distPath))
-                {
-                    if (Directory.Exists(rendererPath))
-                    {
-                        Directory.Delete(rendererPath, true);
-                    }
-                    CopyDirectory(distPath, rendererPath);
-                    Log("Frontend copied to desktop app.");
-                }
-            }
-            else
-            {
-                var error = await process.StandardError.ReadToEndAsync();
-                Log($"Frontend build warning: {error}");
-            }
-        }
-        catch (Exception ex)
-        {
-            Log($"Frontend build error: {ex.Message}");
-        }
+        // Source code is not included - frontend is already built into desktop-app/renderer
+        await Task.CompletedTask;
+        Log("Frontend already built into desktop app.");
     }
     
     private async Task InstallElectronDependencies()
@@ -1646,17 +1566,17 @@ goto check
         try
         {
             var desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-            var desktopAppPath = Path.Combine(installPath, "desktop-app");
-            var desktopExe = Path.Combine(desktopAppPath, "CatalystERP.exe");
             
-            // Use PowerShell to create shortcut pointing directly to WebView2 app
-            CreateShortcutWithPowerShell(
-                Path.Combine(desktopPath, "Catalyst Company Portal.lnk"),
-                desktopExe,
-                desktopAppPath,
-                "Launch Catalyst ERP Desktop Application"
-            );
-            Log("Company Portal shortcut created (WebView2 app).");
+            // Create a URL shortcut (.url file) that opens browser to localhost:5227
+            var urlShortcut = $@"[InternetShortcut]
+URL=http://localhost:5227
+IconIndex=0
+IconFile=C:\Windows\System32\shell32.dll
+";
+            System.IO.File.WriteAllText(
+                Path.Combine(desktopPath, "Catalyst ERP.url"),
+                urlShortcut);
+            Log("Desktop shortcut created (opens browser to http://localhost:5227).");
         }
         catch (Exception ex)
         {
@@ -1692,73 +1612,127 @@ $Shortcut.Save()
     private void CreateUrlShortcuts()
     {
         var desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-        var desktopExe = Path.Combine(installPath, "desktop-app", "CatalystERP.exe");
         
-        // Create a batch file that launches the WebView2 app directly
+        // Fallback: create a batch file that opens browser
         var batchContent = $@"@echo off
-start """" ""{desktopExe}""
+start http://localhost:5227
 ";
         System.IO.File.WriteAllText(
-            Path.Combine(desktopPath, "Catalyst Company Portal.bat"),
+            Path.Combine(desktopPath, "Catalyst ERP.bat"),
             batchContent);
         
-        Log("Desktop shortcut created (WebView2 app launcher).");
+        Log("Desktop shortcut created (browser launcher).");
     }
     
     private void AddBackendToStartup()
     {
         try
         {
-            // Create a startup batch file that runs silently
-            var startupScript = $@"@echo off
-cd /d ""{installPath}\backend""
-set ASPNETCORE_ENVIRONMENT=Local
-start /min """" dotnet run
-";
-            var startupBatPath = Path.Combine(installPath, "Start-Backend.bat");
-            System.IO.File.WriteAllText(startupBatPath, startupScript);
+            var serviceName = "CatalystAPI";
+            var serviceDisplayName = "Catalyst ERP Backend";
+            var backendExe = Path.Combine(installPath, "backend", "CashVan.API.exe");
             
-            // Create a VBS wrapper to run dotnet completely hidden (no taskbar icon)
-            var vbsScript = $@"Set WshShell = CreateObject(""WScript.Shell"")
-WshShell.CurrentDirectory = ""{installPath}\backend""
-WshShell.Run ""cmd /c set ASPNETCORE_ENVIRONMENT=Local && dotnet run"", 0, False
-Set WshShell = Nothing
-";
-            var vbsPath = Path.Combine(installPath, "Start-Backend-Hidden.vbs");
-            System.IO.File.WriteAllText(vbsPath, vbsScript);
+            // First, try to stop and delete existing service if it exists
+            try
+            {
+                var stopProcess = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "sc.exe",
+                        Arguments = $"stop {serviceName}",
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        RedirectStandardOutput = true
+                    }
+                };
+                stopProcess.Start();
+                stopProcess.WaitForExit(5000);
+                
+                var deleteProcess = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "sc.exe",
+                        Arguments = $"delete {serviceName}",
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        RedirectStandardOutput = true
+                    }
+                };
+                deleteProcess.Start();
+                deleteProcess.WaitForExit(5000);
+                
+                System.Threading.Thread.Sleep(1000); // Wait for service to be fully removed
+            }
+            catch { }
             
-            // Add to Windows Startup folder
-            var startupFolder = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
-            var shortcutPath = Path.Combine(startupFolder, "Catalyst Backend.lnk");
+            // Set ASPNETCORE_ENVIRONMENT so backend uses appsettings.Local.json (local PostgreSQL)
+            Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Local", EnvironmentVariableTarget.Machine);
+            Log("Set ASPNETCORE_ENVIRONMENT=Local (system-wide).");
             
-            // Use PowerShell to create shortcut in startup folder
-            var script = $@"
-$WshShell = New-Object -comObject WScript.Shell
-$Shortcut = $WshShell.CreateShortcut('{shortcutPath}')
-$Shortcut.TargetPath = 'wscript.exe'
-$Shortcut.Arguments = '""{vbsPath}""'
-$Shortcut.WorkingDirectory = '{installPath}'
-$Shortcut.Description = 'Catalyst Backend API'
-$Shortcut.Save()
-";
-            var process = new Process
+            // Create the Windows Service with --environment Local argument
+            var createProcess = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
-                    FileName = "powershell.exe",
-                    Arguments = $"-ExecutionPolicy Bypass -Command \"{script.Replace("\"", "\\\"")}\"",
+                    FileName = "sc.exe",
+                    Arguments = $"create {serviceName} binPath= \"\\\"{backendExe}\\\" --environment Local\" DisplayName= \"{serviceDisplayName}\" start= auto",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                }
+            };
+            createProcess.Start();
+            var output = createProcess.StandardOutput.ReadToEnd();
+            var error = createProcess.StandardError.ReadToEnd();
+            createProcess.WaitForExit();
+            
+            if (createProcess.ExitCode != 0)
+            {
+                Log($"Service creation output: {output} {error}");
+                throw new Exception($"Failed to create service. Run installer as Administrator.");
+            }
+            
+            Log($"Windows Service '{serviceName}' created.");
+            
+            // Configure service to restart on failure
+            var failureProcess = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "sc.exe",
+                    Arguments = $"failure {serviceName} reset= 86400 actions= restart/5000/restart/10000/restart/30000",
                     UseShellExecute = false,
                     CreateNoWindow = true
                 }
             };
-            process.Start();
-            process.WaitForExit();
+            failureProcess.Start();
+            failureProcess.WaitForExit();
             
-            Log("Backend added to Windows startup.");
+            // Start the service
+            var startProcess = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "sc.exe",
+                    Arguments = $"start {serviceName}",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true
+                }
+            };
+            startProcess.Start();
+            startProcess.WaitForExit();
+            
+            Log("Catalyst API service installed and started.");
+            Log("Service will auto-start when computer turns on.");
         }
         catch (Exception ex)
         {
-            Log($"Startup configuration warning: {ex.Message}");
+            Log($"Service installation warning: {ex.Message}");
+            Log("TIP: Run installer as Administrator to install the service.");
         }
     }
     
@@ -1804,38 +1778,9 @@ $Shortcut.Save()
     
     private void FixPortalBasename()
     {
-        try
-        {
-            // Fix admin portal main.tsx
-            var adminMain = Path.Combine(installPath, "admin", "src", "main.tsx");
-            if (System.IO.File.Exists(adminMain))
-            {
-                var content = System.IO.File.ReadAllText(adminMain);
-                content = System.Text.RegularExpressions.Regex.Replace(
-                    content, 
-                    @"basename=\{[^}]+\}", 
-                    "basename=\"/\"");
-                System.IO.File.WriteAllText(adminMain, content);
-            }
-            
-            // Fix company portal main.tsx
-            var companyMain = Path.Combine(installPath, "company", "src", "main.tsx");
-            if (System.IO.File.Exists(companyMain))
-            {
-                var content = System.IO.File.ReadAllText(companyMain);
-                content = System.Text.RegularExpressions.Regex.Replace(
-                    content, 
-                    @"basename=\{[^}]+\}", 
-                    "basename=\"/\"");
-                System.IO.File.WriteAllText(companyMain, content);
-            }
-            
-            Log("Portal basenames fixed.");
-        }
-        catch (Exception ex)
-        {
-            Log($"Basename fix warning: {ex.Message}");
-        }
+        // Source code is not included - frontend is already built
+        // No need to fix basenames as they are configured at build time
+        Log("Frontend basenames already configured.");
     }
     
     private void FixLaunchSettings()

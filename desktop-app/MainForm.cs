@@ -1,7 +1,6 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -13,39 +12,46 @@ namespace CatalystApp
     public class MainForm : Form
     {
         private WebView2 webView;
-        private Process? backendProcess;
-        private HttpListener? httpListener;
         private string frontendPath;
+        private string logFile;
         private const int BACKEND_PORT = 5227;
-        private const int FRONTEND_PORT = 3000;
+        private const string SERVICE_NAME = "CatalystAPI";
         private Label statusLabel;
-        private bool isClosing = false;
+        private Button retryButton;
 
         public MainForm()
         {
-            // Get paths
             var appPath = AppDomain.CurrentDomain.BaseDirectory;
             frontendPath = Path.Combine(appPath, "renderer");
+            logFile = Path.Combine(appPath, "catalyst_log.txt");
             
-            // Form setup
             this.Text = "Catalyst ERP";
             this.Size = new System.Drawing.Size(1400, 900);
             this.MinimumSize = new System.Drawing.Size(1024, 700);
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.BackColor = System.Drawing.Color.FromArgb(16, 185, 129); // Emerald
+            this.BackColor = System.Drawing.Color.FromArgb(16, 185, 129);
             
-            // Status label
             statusLabel = new Label
             {
                 Text = "Starting Catalyst ERP...",
                 ForeColor = System.Drawing.Color.White,
                 Font = new System.Drawing.Font("Segoe UI", 14),
                 AutoSize = true,
+                MaximumSize = new System.Drawing.Size(600, 0),
                 Location = new System.Drawing.Point(20, 20)
             };
             this.Controls.Add(statusLabel);
 
-            // WebView2
+            retryButton = new Button
+            {
+                Text = "Retry",
+                Size = new System.Drawing.Size(100, 35),
+                Location = new System.Drawing.Point(20, 100),
+                Visible = false
+            };
+            retryButton.Click += async (s, e) => await StartupSequence();
+            this.Controls.Add(retryButton);
+
             webView = new WebView2
             {
                 Dock = DockStyle.Fill,
@@ -54,209 +60,146 @@ namespace CatalystApp
             this.Controls.Add(webView);
 
             this.Load += MainForm_Load;
-            this.FormClosing += MainForm_FormClosing;
+        }
+
+        private void Log(string message)
+        {
+            try
+            {
+                var line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}";
+                File.AppendAllText(logFile, line + Environment.NewLine);
+                Debug.WriteLine(line);
+            }
+            catch { }
         }
 
         private async void MainForm_Load(object? sender, EventArgs e)
         {
+            Log("=== Catalyst ERP Starting ===");
+            Log($"App Path: {AppDomain.CurrentDomain.BaseDirectory}");
+            Log($"Frontend Path: {frontendPath}");
+            await StartupSequence();
+        }
+
+        private async Task StartupSequence()
+        {
+            retryButton.Visible = false;
+            statusLabel.ForeColor = System.Drawing.Color.White;
+            
             try
             {
-                // Start backend
-                statusLabel.Text = "Starting backend server...";
-                await StartBackend();
+                // Step 1: Check if backend service is running
+                statusLabel.Text = "Checking backend service...";
+                Log("Checking CatalystAPI service...");
                 
-                // Start frontend server
-                statusLabel.Text = "Starting frontend server...";
-                StartFrontendServer();
+                if (!IsPortInUse(BACKEND_PORT))
+                {
+                    // Try to start the service
+                    statusLabel.Text = "Starting backend service...";
+                    Log("Backend not running, attempting to start service...");
+                    await StartBackendService();
+                }
                 
-                // Wait for servers
-                statusLabel.Text = "Waiting for servers...";
-                await WaitForServer(BACKEND_PORT, 15000);
-                await WaitForServer(FRONTEND_PORT, 5000);
+                // Step 2: Wait for backend to be ready
+                statusLabel.Text = "Waiting for backend...";
+                Log("Waiting for backend on port 5227...");
+                var backendReady = await WaitForServer(BACKEND_PORT, 15000);
                 
-                // Initialize WebView2
+                if (!backendReady)
+                {
+                    throw new Exception("Backend service not responding.\n\nPlease ensure:\n1. PostgreSQL is running\n2. Installer was run as Administrator");
+                }
+                Log("Backend is ready!");
+                
+                // Step 3: Initialize WebView2
                 statusLabel.Text = "Loading application...";
+                Log("Initializing WebView2...");
                 await InitializeWebView();
                 
-                // Show WebView
+                Log("Startup complete!");
                 statusLabel.Visible = false;
                 webView.Visible = true;
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Startup error: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Log($"ERROR: {ex.Message}");
+                statusLabel.Text = $"Error: {ex.Message}";
+                statusLabel.ForeColor = System.Drawing.Color.Yellow;
+                retryButton.Visible = true;
             }
         }
 
-        private async Task StartBackend()
+        private async Task StartBackendService()
         {
-            // Try multiple locations for backend
-            var possiblePaths = new[]
+            try
             {
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "backend"), // Installed: C:\Catalyst\desktop-app\..\backend
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "backend"),        // Alongside app
-                @"C:\Catalyst\backend",                                                  // Default install location
-                Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "backend")) // Dev location
-            };
-            
-            string? backendPath = null;
-            foreach (var path in possiblePaths)
-            {
-                if (Directory.Exists(path))
+                // Try using sc.exe to start the service (works without admin for already-installed services)
+                var process = new Process
                 {
-                    backendPath = path;
-                    break;
-                }
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "sc.exe",
+                        Arguments = $"start {SERVICE_NAME}",
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        RedirectStandardOutput = true
+                    }
+                };
+                process.Start();
+                await process.WaitForExitAsync();
+                Log($"Service start command sent. Exit code: {process.ExitCode}");
+            }
+            catch (Exception ex)
+            {
+                Log($"Could not start service via sc.exe: {ex.Message}");
             }
             
-            if (backendPath == null)
-            {
-                throw new Exception($"Backend not found. Searched: {string.Join(", ", possiblePaths)}");
-            }
-
-            // Check if backend is already running
-            if (IsPortInUse(BACKEND_PORT))
-            {
-                return; // Already running
-            }
-
-            backendProcess = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "dotnet",
-                    Arguments = "run",
-                    WorkingDirectory = backendPath,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true
-                }
-            };
-            backendProcess.StartInfo.EnvironmentVariables["ASPNETCORE_ENVIRONMENT"] = "Local";
-            backendProcess.Start();
-            
-            await Task.Delay(2000); // Give it time to start
+            await Task.Delay(2000); // Give service time to start
         }
 
-        private void StartFrontendServer()
+        private async Task InitializeWebView()
         {
             if (!Directory.Exists(frontendPath))
             {
                 throw new Exception($"Frontend not found at: {frontendPath}");
             }
 
-            // Check if something is already on port 3000
-            if (IsPortInUse(FRONTEND_PORT))
+            var indexFile = Path.Combine(frontendPath, "index.html");
+            if (!File.Exists(indexFile))
             {
-                return;
+                throw new Exception($"index.html not found at: {indexFile}");
             }
 
-            // Start simple HTTP server for frontend
-            Task.Run(() => RunHttpServer());
-        }
-
-        private void RunHttpServer()
-        {
-            try
-            {
-                httpListener = new HttpListener();
-                httpListener.Prefixes.Add($"http://localhost:{FRONTEND_PORT}/");
-                httpListener.Start();
-
-                while (!isClosing && httpListener.IsListening)
-                {
-                    try
-                    {
-                        var context = httpListener.GetContext();
-                        Task.Run(() => HandleRequest(context));
-                    }
-                    catch (HttpListenerException)
-                    {
-                        break;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"HTTP Server error: {ex.Message}");
-            }
-        }
-
-        private void HandleRequest(HttpListenerContext context)
-        {
-            try
-            {
-                var requestPath = context.Request.Url?.AbsolutePath ?? "/";
-                if (requestPath == "/") requestPath = "/index.html";
-                
-                var filePath = Path.Combine(frontendPath, requestPath.TrimStart('/'));
-                
-                // SPA fallback - return index.html for routes
-                if (!File.Exists(filePath) && !Path.HasExtension(requestPath))
-                {
-                    filePath = Path.Combine(frontendPath, "index.html");
-                }
-
-                if (File.Exists(filePath))
-                {
-                    var content = File.ReadAllBytes(filePath);
-                    context.Response.ContentType = GetMimeType(filePath);
-                    context.Response.ContentLength64 = content.Length;
-                    context.Response.OutputStream.Write(content, 0, content.Length);
-                }
-                else
-                {
-                    context.Response.StatusCode = 404;
-                }
-            }
-            catch { }
-            finally
-            {
-                context.Response.Close();
-            }
-        }
-
-        private string GetMimeType(string filePath)
-        {
-            var ext = Path.GetExtension(filePath).ToLower();
-            return ext switch
-            {
-                ".html" => "text/html",
-                ".css" => "text/css",
-                ".js" => "application/javascript",
-                ".json" => "application/json",
-                ".png" => "image/png",
-                ".jpg" => "image/jpeg",
-                ".jpeg" => "image/jpeg",
-                ".gif" => "image/gif",
-                ".svg" => "image/svg+xml",
-                ".ico" => "image/x-icon",
-                ".woff" => "font/woff",
-                ".woff2" => "font/woff2",
-                ".ttf" => "font/ttf",
-                _ => "application/octet-stream"
-            };
-        }
-
-        private async Task InitializeWebView()
-        {
-            var env = await CoreWebView2Environment.CreateAsync();
+            var userDataFolder = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), 
+                "CatalystERP", "WebView2");
+            Directory.CreateDirectory(userDataFolder);
+            
+            var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder);
             await webView.EnsureCoreWebView2Async(env);
-            webView.Source = new Uri($"http://localhost:{FRONTEND_PORT}");
+            
+            // Map virtual host to local files - avoids localhost server issues
+            webView.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                "catalyst.local", 
+                frontendPath, 
+                CoreWebView2HostResourceAccessKind.Allow);
+            
+            webView.Source = new Uri("https://catalyst.local/index.html");
+            Log("WebView2 initialized with virtual host mapping");
         }
 
-        private async Task WaitForServer(int port, int timeoutMs)
+        private async Task<bool> WaitForServer(int port, int timeoutMs)
         {
             var start = DateTime.Now;
             while ((DateTime.Now - start).TotalMilliseconds < timeoutMs)
             {
                 if (IsPortInUse(port))
                 {
-                    return;
+                    return true;
                 }
                 await Task.Delay(500);
             }
+            return false;
         }
 
         private bool IsPortInUse(int port)
@@ -271,24 +214,6 @@ namespace CatalystApp
             {
                 return false;
             }
-        }
-
-        private void MainForm_FormClosing(object? sender, FormClosingEventArgs e)
-        {
-            isClosing = true;
-            
-            // Stop HTTP listener
-            try { httpListener?.Stop(); } catch { }
-            
-            // Stop backend
-            try
-            {
-                if (backendProcess != null && !backendProcess.HasExited)
-                {
-                    backendProcess.Kill();
-                }
-            }
-            catch { }
         }
     }
 }
