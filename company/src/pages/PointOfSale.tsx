@@ -4,7 +4,7 @@ import {
   DollarSign, CreditCard, User, X, Barcode,
   Trash2, AlertCircle, Check, Printer, Warehouse, FileText,
   RotateCcw, ArrowLeftRight, ShoppingCart, Undo2,
-  Receipt, GripVertical, AlertTriangle
+  Receipt, GripVertical, AlertTriangle, Loader2
 } from 'lucide-react'
 import { customersApi, warehousesApi, quotesApi, directSalesApi, settingsApi, currenciesApi } from '../lib/api'
 import api from '../lib/api'
@@ -1220,27 +1220,27 @@ export default function DirectSales() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-500"></div>
       </div>
     )
   }
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex">
+    <div className="h-[calc(100vh-4rem)] flex bg-slate-900 text-slate-300">
       {/* Left Side - Products */}
-      <div className="flex-1 flex flex-col border-r">
+      <div className="flex-1 flex flex-col border-r border-slate-800">
         {/* Header with Mode Toggle */}
-        <div className="bg-white border-b px-4 py-3 flex items-center gap-4">
-          <h1 className="text-xl font-bold text-gray-900">Direct Sales</h1>
+        <div className="bg-slate-950/50 backdrop-blur-md border-b border-slate-800 px-4 py-3 flex items-center gap-4 relative z-10">
+          <h1 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 tracking-tight">Point of Sale</h1>
           
           {/* Mode Toggle */}
-          <div className="flex bg-gray-100 rounded-lg p-1">
+          <div className="flex bg-slate-900 border border-slate-800 rounded-lg p-1 shadow-inner ml-2">
             <button
               onClick={() => { setSalesMode('sale'); resetReturnMode() }}
               className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 salesMode === 'sale' 
-                  ? 'bg-white text-blue-600 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-slate-800 text-cyan-400 shadow-sm border border-slate-700' 
+                  : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <ShoppingCart size={16} className="inline mr-1.5" />
@@ -1250,8 +1250,8 @@ export default function DirectSales() {
               onClick={() => setSalesMode('return')}
               className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 salesMode === 'return' 
-                  ? 'bg-white text-orange-600 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-slate-800 text-rose-400 shadow-sm border border-slate-700' 
+                  : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <RotateCcw size={16} className="inline mr-1.5" />
@@ -1262,7 +1262,7 @@ export default function DirectSales() {
           <select
             value={selectedWarehouse || ''}
             onChange={(e) => setSelectedWarehouse(Number(e.target.value))}
-            className="border rounded-lg px-3 py-2 text-sm"
+            className="border border-slate-700 bg-slate-900 text-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-cyan-500 outline-none ml-auto"
           >
             <option value="">Select Warehouse</option>
             {warehouses.map(wh => (
@@ -1273,34 +1273,34 @@ export default function DirectSales() {
 
         {/* Invoice Loading for Return Mode */}
         {salesMode === 'return' && (
-          <div className="bg-orange-50 border-b px-4 py-2 flex items-center gap-3">
-            <Receipt size={18} className="text-orange-600" />
-            <span className="text-sm font-medium text-orange-700">Load Invoice:</span>
+          <div className="bg-rose-500/10 border-b border-rose-500/20 px-4 py-3 flex items-center gap-3">
+            <Receipt size={18} className="text-rose-400" />
+            <span className="text-sm font-medium text-rose-300">Load Invoice:</span>
             <input
               type="text"
               value={invoiceNumber}
               onChange={(e) => setInvoiceNumber(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && loadInvoice()}
               placeholder="Enter invoice number (e.g., DS-20241220-0001)"
-              className="flex-1 max-w-xs px-3 py-1.5 border rounded-lg text-sm"
+              className="flex-1 max-w-xs px-4 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm focus:ring-1 focus:ring-rose-500 outline-none text-slate-200"
             />
             <button
               onClick={loadInvoice}
               disabled={loadingInvoice || !invoiceNumber.trim()}
-              className="px-4 py-1.5 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 disabled:opacity-50"
+              className="px-5 py-2 bg-rose-600 text-white text-sm rounded-xl hover:bg-rose-500 disabled:opacity-50 transition-colors font-medium"
             >
               {loadingInvoice ? 'Loading...' : 'Load'}
             </button>
             {loadedOrder && (
               <div className="flex items-center gap-2">
-                <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg">
                   Invoice loaded: {loadedOrder.orderNumber}
                 </span>
                 <button
                   onClick={resetReturnMode}
-                  className="text-xs text-gray-500 hover:text-gray-700"
+                  className="text-slate-400 hover:text-rose-400 p-1 rounded-md transition-colors"
                 >
-                  <X size={14} />
+                  <X size={16} />
                 </button>
               </div>
             )}
@@ -1309,28 +1309,28 @@ export default function DirectSales() {
 
         {/* Original Invoice Summary (Return Mode) */}
         {salesMode === 'return' && loadedOrder && (
-          <div className="bg-gray-50 border-b px-4 py-3">
+          <div className="bg-slate-950/30 border-b border-slate-800 px-4 py-3">
             <div className="flex items-start justify-between">
               <div>
                 <div className="flex items-center gap-3">
-                  <span className="font-semibold text-gray-900">{loadedOrder.orderNumber}</span>
-                  <span className="text-sm text-gray-500">
+                  <span className="font-bold text-white">{loadedOrder.orderNumber}</span>
+                  <span className="text-sm text-slate-400">
                     {new Date(loadedOrder.orderDate).toLocaleDateString()}
                   </span>
-                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                  <span className="text-xs font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-2 py-0.5 rounded-md uppercase tracking-wider">
                     {loadedOrder.paymentStatus}
                   </span>
                 </div>
-                <div className="text-sm text-gray-600 mt-1">
-                  Customer: <span className="font-medium">{loadedOrder.customerName}</span>
-                  {loadedOrder.cashierName && <span className="ml-3">Cashier: {loadedOrder.cashierName}</span>}
+                <div className="text-sm text-slate-400 mt-1">
+                  Customer: <span className="font-medium text-slate-200">{loadedOrder.customerName}</span>
+                  {loadedOrder.cashierName && <span className="ml-3 border-l border-slate-700 pl-3">Cashier: {loadedOrder.cashierName}</span>}
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-lg font-bold text-gray-900">{loadedOrder.totalAmount.toFixed(3)}</div>
-                <div className="text-xs text-gray-500">
-                  Paid: {loadedOrder.paidAmount.toFixed(3)}
-                  {loadedOrder.discountAmount > 0 && ` | Discount: ${loadedOrder.discountAmount.toFixed(3)}`}
+                <div className="text-lg font-bold text-emerald-400">${loadedOrder.totalAmount.toFixed(3)}</div>
+                <div className="text-xs text-slate-500">
+                  Paid: ${loadedOrder.paidAmount.toFixed(3)}
+                  {loadedOrder.discountAmount > 0 && ` | Discount: $${loadedOrder.discountAmount.toFixed(3)}`}
                 </div>
               </div>
             </div>
@@ -1339,26 +1339,26 @@ export default function DirectSales() {
 
         {/* Quote Reference (Sale Mode) */}
         {salesMode === 'sale' && (
-          <div className="bg-blue-50 border-b px-4 py-2 flex items-center gap-3">
-            <FileText size={18} className="text-blue-600" />
-            <span className="text-sm font-medium text-blue-700">Load Quote:</span>
+          <div className="bg-cyan-500/10 border-b border-cyan-500/20 px-4 py-3 flex items-center gap-3">
+            <FileText size={18} className="text-cyan-400" />
+            <span className="text-sm font-medium text-cyan-300">Load Quote:</span>
             <input
               type="text"
               value={quoteNumber}
               onChange={(e) => setQuoteNumber(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && loadQuote()}
               placeholder="Enter quote number (e.g., QT-20241219-0001)"
-              className="flex-1 max-w-xs px-3 py-1.5 border rounded-lg text-sm"
+              className="flex-1 max-w-xs px-4 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm focus:ring-1 focus:ring-cyan-500 outline-none text-slate-200"
             />
             <button
               onClick={loadQuote}
               disabled={loadingQuote || !quoteNumber.trim()}
-              className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              className="px-5 py-2 bg-cyan-600 text-white text-sm rounded-xl hover:bg-cyan-500 disabled:opacity-50 transition-colors font-medium shadow-lg shadow-cyan-900/20"
             >
               {loadingQuote ? 'Loading...' : 'Load'}
             </button>
             {loadedQuoteId && (
-              <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+              <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg">
                 Quote loaded
               </span>
             )}
@@ -1367,13 +1367,13 @@ export default function DirectSales() {
 
         {/* Tab Navigation for Return Mode */}
         {salesMode === 'return' && loadedOrder && (
-          <div className="bg-white border-b px-4 py-2 flex gap-2">
+          <div className="bg-slate-950/50 backdrop-blur-md border-b border-slate-800 px-4 py-2 flex gap-2">
             <button
               onClick={() => setProductTab('invoice')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
                 productTab === 'invoice'
-                  ? 'bg-orange-100 text-orange-700'
-                  : 'text-gray-600 hover:bg-gray-100'
+                  ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                  : 'text-slate-400 hover:bg-slate-800 border border-transparent'
               }`}
             >
               <Undo2 size={16} className="inline mr-1.5" />
@@ -1381,10 +1381,10 @@ export default function DirectSales() {
             </button>
             <button
               onClick={() => setProductTab('catalog')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
                 productTab === 'catalog'
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'text-gray-600 hover:bg-gray-100'
+                  ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
+                  : 'text-slate-400 hover:bg-slate-800 border border-transparent'
               }`}
             >
               <Package size={16} className="inline mr-1.5" />
@@ -1394,36 +1394,36 @@ export default function DirectSales() {
         )}
 
         {/* Search */}
-        <div className="bg-white border-b px-4 py-3 flex gap-4">
+        <div className="bg-slate-950/30 border-b border-slate-800 px-4 py-3 flex gap-4">
           <form onSubmit={handleBarcodeSubmit} className="w-48">
             <div className="relative">
-              <Barcode className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <Barcode className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
               <input
                 ref={barcodeInputRef}
                 type="text"
                 value={barcodeInput}
                 onChange={(e) => setBarcodeInput(e.target.value)}
                 placeholder="Scan barcode..."
-                className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm"
+                className="w-full pl-11 pr-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm focus:ring-1 focus:ring-cyan-500 outline-none text-slate-200 transition-all"
               />
             </div>
           </form>
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search products..."
-              className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm"
+              placeholder="Search products by name or SKU..."
+              className="w-full pl-11 pr-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm focus:ring-1 focus:ring-cyan-500 outline-none text-slate-200 transition-all"
             />
           </div>
           <button
             onClick={() => setShowLowStockOnly(!showLowStockOnly)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all whitespace-nowrap ${
               showLowStockOnly
-                ? 'bg-orange-100 text-orange-700 border border-orange-300'
-                : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'
+                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30 shadow-inner'
+                : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700 hover:text-slate-200'
             }`}
           >
             <AlertTriangle size={16} />
@@ -1432,18 +1432,18 @@ export default function DirectSales() {
         </div>
 
         {/* Products Grid - POS Style */}
-        <div className="flex-1 overflow-auto bg-gray-100 p-4">
+        <div className="flex-1 overflow-auto bg-slate-900 p-5 custom-scrollbar">
           {/* Invoice Items Tab (Return Mode) */}
           {salesMode === 'return' && loadedOrder && productTab === 'invoice' && (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {loadedOrder.items.map(item => {
                 const inReturnBasket = returnBasket.find(ri => ri.originalOrderItemId === item.id)
                 const effectivePrice = item.unitPrice - (item.discountAmount / item.quantity)
                 return (
                   <div 
                     key={item.id}
-                    className={`bg-white rounded-lg p-4 shadow-sm border-2 transition-colors ${
-                      inReturnBasket ? 'border-orange-300 bg-orange-50' : 'border-transparent hover:border-gray-200'
+                    className={`bg-slate-800/50 rounded-2xl p-5 shadow-sm border-2 transition-all ${
+                      inReturnBasket ? 'border-rose-500/50 bg-rose-500/5' : 'border-slate-700 hover:border-slate-600'
                     }`}
                     draggable
                     onDragStart={(e) => {
@@ -1451,29 +1451,33 @@ export default function DirectSales() {
                       setDragOverZone(null)
                     }}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <GripVertical size={16} className="text-gray-400 cursor-grab" />
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-4">
+                        <GripVertical size={18} className="text-slate-500 cursor-grab" />
                         <div>
-                          <div className="font-medium text-gray-900">{item.productName}</div>
-                          <div className="text-sm text-gray-500">{item.productSku} · {item.unitType}</div>
+                          <div className="font-bold text-slate-200 text-lg">{item.productName}</div>
+                          <div className="text-sm text-slate-400 mt-0.5"><span className="font-mono text-xs">{item.productSku}</span> <span className="mx-2">•</span> {item.unitType}</div>
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="font-medium">{effectivePrice.toFixed(3)} × {item.quantity}</div>
-                        <div className="text-sm text-gray-500">Total: {item.lineTotal.toFixed(3)}</div>
+                        <div className="font-medium text-slate-300">${effectivePrice.toFixed(3)} × {item.quantity}</div>
+                        <div className="text-sm font-bold text-cyan-400 mt-0.5">Total: ${item.lineTotal.toFixed(3)}</div>
                       </div>
                     </div>
                     
                     {/* Return Status */}
-                    <div className="mt-3 flex items-center justify-between">
-                      <div className="flex items-center gap-4 text-sm">
-                        <span className="text-gray-600">Sold: <span className="font-medium">{item.quantity}</span></span>
+                    <div className="pt-3 border-t border-slate-700/50 flex items-center justify-between">
+                      <div className="flex items-center gap-4 text-sm bg-slate-900/50 py-1.5 px-3 rounded-lg border border-slate-800">
+                        <span className="text-slate-400">Sold: <span className="font-bold text-slate-200">{item.quantity}</span></span>
                         {item.alreadyReturnedQty > 0 && (
-                          <span className="text-orange-600">Returned: <span className="font-medium">{item.alreadyReturnedQty}</span></span>
+                          <>
+                            <span className="text-slate-600">|</span>
+                            <span className="text-amber-400">Returned: <span className="font-bold">{item.alreadyReturnedQty}</span></span>
+                          </>
                         )}
-                        <span className={`${item.returnableQty > 0 ? 'text-green-600' : 'text-red-500'}`}>
-                          Returnable: <span className="font-medium">{item.returnableQty}</span>
+                        <span className="text-slate-600">|</span>
+                        <span className={`${item.returnableQty > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          Returnable: <span className="font-bold">{item.returnableQty}</span>
                         </span>
                       </div>
                       
@@ -1482,14 +1486,14 @@ export default function DirectSales() {
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => addToReturnBasket(item, 1)}
-                            className="px-3 py-1 text-sm bg-orange-100 text-orange-700 rounded hover:bg-orange-200"
+                            className="px-4 py-2 text-sm bg-rose-500/10 text-rose-400 rounded-xl hover:bg-rose-500/20 border border-rose-500/20 font-medium transition-colors"
                           >
                             + Return 1
                           </button>
                           {item.returnableQty > 1 && (
                             <button
                               onClick={() => addToReturnBasket(item, item.returnableQty)}
-                              className="px-3 py-1 text-sm bg-orange-600 text-white rounded hover:bg-orange-700"
+                              className="px-4 py-2 text-sm bg-rose-600 text-white rounded-xl hover:bg-rose-500 font-medium transition-colors shadow-lg shadow-rose-900/20"
                             >
                               Return All ({item.returnableQty})
                             </button>
@@ -1497,14 +1501,14 @@ export default function DirectSales() {
                         </div>
                       )}
                       {item.returnableQty === 0 && (
-                        <span className="text-xs text-red-500 bg-red-50 px-2 py-1 rounded">Fully Returned</span>
+                        <span className="text-xs font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-1.5 rounded-lg uppercase tracking-wider">Fully Returned</span>
                       )}
                     </div>
                     
                     {inReturnBasket && (
-                      <div className="mt-2 text-sm text-orange-600 flex items-center gap-1">
-                        <Check size={14} />
-                        {inReturnBasket.quantity} in return basket
+                      <div className="mt-3 p-2 bg-rose-500/10 rounded-lg text-sm text-rose-400 flex items-center gap-2 border border-rose-500/20">
+                        <Check size={16} />
+                        <span className="font-bold">{inReturnBasket.quantity}</span> currently in return basket
                       </div>
                     )}
                   </div>
@@ -1517,17 +1521,23 @@ export default function DirectSales() {
           {(salesMode === 'sale' || (salesMode === 'return' && productTab === 'catalog')) && (
             <>
               {!selectedWarehouse ? (
-                <div className="text-center py-12 text-gray-500">
-                  <Warehouse size={48} className="mx-auto mb-4 opacity-50" />
-                  <p>Please select a warehouse</p>
+                <div className="flex flex-col items-center justify-center h-full text-slate-500">
+                  <div className="w-24 h-24 bg-slate-800 rounded-full flex items-center justify-center mb-4 border border-slate-700">
+                    <Warehouse size={40} className="text-slate-400" />
+                  </div>
+                  <p className="text-lg font-medium text-slate-300">Please select a warehouse</p>
+                  <p className="text-sm mt-1">Choose a warehouse from the dropdown above to view products.</p>
                 </div>
               ) : filteredProducts.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
-                  <Package size={48} className="mx-auto mb-4 opacity-50" />
-                  <p>No products found</p>
+                <div className="flex flex-col items-center justify-center h-full text-slate-500">
+                  <div className="w-24 h-24 bg-slate-800 rounded-full flex items-center justify-center mb-4 border border-slate-700">
+                    <Package size={40} className="text-slate-400" />
+                  </div>
+                  <p className="text-lg font-medium text-slate-300">No products found</p>
+                  <p className="text-sm mt-1">Try adjusting your search or filters.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                   {filteredProducts.map(product => {
                     // Show base unit price (first unit) on the card
                     const baseUnitPrice = getEffectivePrice(product, 'piece')
@@ -1535,7 +1545,7 @@ export default function DirectSales() {
                     return (
                       <div 
                         key={`${product.productId}-${product.variantId ?? 'main'}-${product.warehouseId}`} 
-                        className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col"
+                        className="bg-slate-950/50 backdrop-blur-md rounded-2xl border border-slate-800 hover:border-cyan-500/50 transition-all overflow-hidden flex flex-col group"
                         draggable={salesMode === 'return'}
                         onDragStart={(e) => {
                           if (salesMode === 'return') {
@@ -1544,69 +1554,69 @@ export default function DirectSales() {
                         }}
                       >
                         {/* Product Image */}
-                        <div className="relative h-28 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                        <div className="relative h-32 bg-slate-900 flex items-center justify-center border-b border-slate-800">
                           {product.imageUrl ? (
                             <img 
                               src={product.imageUrl} 
                               alt={product.productName}
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
                             />
                           ) : (
-                            <Package size={40} className="text-gray-300" />
+                            <Package size={40} className="text-slate-600" />
                           )}
                           {/* Stock Badge */}
-                          <span className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-xs font-medium ${
-                            product.quantity < 10 ? 'bg-red-500 text-white' : 'bg-green-500 text-white'
+                          <span className={`absolute top-2 right-2 px-2.5 py-1 rounded-lg text-xs font-bold shadow-lg backdrop-blur-md ${
+                            product.quantity < 10 ? 'bg-rose-500/80 text-white border border-rose-400' : 'bg-slate-800/80 text-emerald-400 border border-slate-600'
                           }`}>
-                            {product.quantity}
+                            {product.quantity} in stock
                           </span>
                           {baseUnitPrice.isSpecial && (
-                            <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500 text-white">
-                              Special
+                            <span className="absolute top-2 left-2 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/80 text-white border border-amber-400 backdrop-blur-md shadow-lg">
+                              Special Price
                             </span>
                           )}
                         </div>
                         
                         {/* Product Info */}
-                        <div className="p-3 flex-1 flex flex-col">
-                          <h3 className="font-medium text-sm text-gray-900 line-clamp-2 mb-1">
+                        <div className="p-4 flex-1 flex flex-col">
+                          <h3 className="font-bold text-sm text-slate-200 line-clamp-2 mb-1 group-hover:text-cyan-400 transition-colors">
                             {product.productName}
                           </h3>
-                          {product.sku && <p className="text-xs text-gray-500 mb-1">{product.sku}</p>}
+                          {product.sku && <p className="text-xs font-mono text-slate-500 mb-2">{product.sku}</p>}
                           {/* Product Attributes */}
-                          <div className="flex flex-wrap gap-1 mb-1">
+                          <div className="flex flex-wrap gap-1.5 mb-2">
                             {product.color && (
-                              <span className="px-1.5 py-0.5 bg-pink-50 text-pink-600 rounded text-[10px]">{product.color}</span>
+                              <span className="px-2 py-0.5 bg-slate-800 text-slate-300 rounded-md text-[10px] border border-slate-700">{product.color}</span>
                             )}
                             {product.size && (
-                              <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px]">{product.size}</span>
+                              <span className="px-2 py-0.5 bg-slate-800 text-slate-300 rounded-md text-[10px] border border-slate-700">{product.size}</span>
                             )}
                             {product.weight && (
-                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px]">{product.weight}kg</span>
+                              <span className="px-2 py-0.5 bg-slate-800 text-slate-300 rounded-md text-[10px] border border-slate-700">{product.weight}kg</span>
                             )}
                             {(product.length || product.height) && (
-                              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px]">
+                              <span className="px-2 py-0.5 bg-slate-800 text-slate-300 rounded-md text-[10px] border border-slate-700">
                                 {product.length && `${product.length}cm`}{product.length && product.height && ' × '}{product.height && `${product.height}cm`}
                               </span>
                             )}
                           </div>
                           
                           {/* Price */}
-                          <div className="mt-auto">
-                            <p className={`text-lg font-bold ${baseUnitPrice.isSpecial ? 'text-green-600' : 'text-blue-600'}`}>
-                              {product.currency} {baseUnitPrice.price.toFixed(3)}
+                          <div className="mt-auto pt-2">
+                            <p className={`text-xl font-bold ${baseUnitPrice.isSpecial ? 'text-emerald-400' : 'text-cyan-400'}`}>
+                              <span className="text-sm text-slate-500 mr-1">{product.currency}</span>{baseUnitPrice.price.toFixed(3)}
                             </p>
                             {companySettings.showSecondaryPrice && (
-                              <p className="text-xs text-orange-500 font-medium">
+                              <p className="text-xs text-amber-400/80 font-medium">
                                 {(baseUnitPrice.price * companySettings.exchangeRate).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                               </p>
                             )}
-                            <p className="text-xs text-gray-400">per {product.baseUnit}</p>
+                            <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mt-0.5">per {product.baseUnit}</p>
                             {secondUnitPrice && (
-                              <p className={`text-xs mt-1 ${secondUnitPrice.isSpecial ? 'text-green-600' : 'text-purple-600'}`}>
+                              <p className={`text-xs mt-1.5 font-medium ${secondUnitPrice.isSpecial ? 'text-emerald-400/80' : 'text-purple-400/80'}`}>
                                 {product.currency} {secondUnitPrice.price.toFixed(3)} / {product.secondUnit}
                                 {companySettings.showSecondaryPrice && (
-                                  <span className="text-orange-500 ml-1">
+                                  <span className="text-amber-400/60 ml-1">
                                     ({(secondUnitPrice.price * companySettings.exchangeRate).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')})
                                   </span>
                                 )}
@@ -1617,13 +1627,13 @@ export default function DirectSales() {
 
                         
                         {/* Add Buttons */}
-                        <div className="p-2 bg-gray-50 border-t flex gap-1">
+                        <div className="p-3 bg-slate-900 border-t border-slate-800 flex gap-2">
                           {salesMode === 'sale' ? (
                             <>
                               <button
                                 onClick={() => addToCart(product, 'piece', product.variantId, product.variantName)}
                                 disabled={product.quantity === 0}
-                                className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                className="flex-1 py-2 bg-cyan-600 text-white rounded-xl text-sm font-bold hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-cyan-900/20"
                               >
                                 + {product.baseUnit}
                               </button>
@@ -1631,7 +1641,7 @@ export default function DirectSales() {
                                 <button
                                   onClick={() => addToCart(product, 'box', product.variantId, product.variantName)}
                                   disabled={product.quantity === 0}
-                                  className="flex-1 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                  className="flex-1 py-2 bg-purple-600 text-white rounded-xl text-sm font-bold hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-purple-900/20"
                                   title={`1 ${product.baseUnit} = ${product.unitsPerSecond} ${product.secondUnit}s`}
                                 >
                                   + {product.secondUnit}
@@ -1643,7 +1653,7 @@ export default function DirectSales() {
                               <button
                                 onClick={() => addToExchangeBasket(product, 'piece')}
                                 disabled={product.quantity === 0}
-                                className="flex-1 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                className="flex-1 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-emerald-900/20"
                               >
                                 + Add {product.baseUnit}
                               </button>
@@ -1651,7 +1661,7 @@ export default function DirectSales() {
                                 <button
                                   onClick={() => addToExchangeBasket(product, 'box')}
                                   disabled={product.quantity === 0}
-                                  className="flex-1 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                  className="flex-1 py-2 bg-teal-600 text-white rounded-xl text-sm font-bold hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-teal-900/20"
                                 >
                                   + Add {product.secondUnit}
                                 </button>
@@ -1669,37 +1679,43 @@ export default function DirectSales() {
 
           {/* Empty State for Return Mode without Invoice */}
           {salesMode === 'return' && !loadedOrder && (
-            <div className="text-center py-12 text-gray-500">
-              <Receipt size={48} className="mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium">Load an Invoice to Begin</p>
-              <p className="text-sm mt-2">Enter an invoice number above to start the return/exchange process</p>
+            <div className="flex flex-col items-center justify-center h-full text-slate-500">
+              <div className="w-24 h-24 bg-slate-800 rounded-full flex items-center justify-center mb-5 border border-slate-700">
+                <Receipt size={40} className="text-slate-400" />
+              </div>
+              <p className="text-xl font-bold text-slate-300">Load an Invoice to Begin</p>
+              <p className="text-sm mt-2 text-slate-400">Enter an invoice number in the top bar to start the return/exchange process</p>
             </div>
           )}
         </div>
       </div>
 
       {/* Right Side - Cart */}
-      <div className="w-96 flex flex-col bg-white">
+      <div className="w-96 flex flex-col bg-slate-950 border-l border-slate-800 z-20 shadow-2xl relative">
         {/* Customer Selection */}
-        <div className="p-4 border-b">
+        <div className="p-4 border-b border-slate-800 bg-slate-900/50">
           <button
             onClick={() => setShowCustomerPicker(true)}
             disabled={salesMode === 'return' && loadedOrder !== null}
-            className={`w-full flex items-center gap-2 px-4 py-3 rounded-lg border ${
-              selectedCustomer ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-gray-50 hover:bg-gray-100'
-            } ${salesMode === 'return' && loadedOrder ? 'opacity-75 cursor-not-allowed' : ''}`}
+            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all ${
+              selectedCustomer 
+                ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400 shadow-inner' 
+                : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
+            } ${salesMode === 'return' && loadedOrder ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            <User size={18} />
+            <div className={`p-2 rounded-lg ${selectedCustomer ? 'bg-cyan-500/20' : 'bg-slate-700'}`}>
+              <User size={18} />
+            </div>
             <span className="flex-1 text-left">
               {selectedCustomer ? (
                 <div>
-                  <div className="font-medium">{selectedCustomer.name}</div>
+                  <div className="font-bold text-slate-200">{selectedCustomer.name}</div>
                   {selectedCustomer.debtBalance > 0 && (
-                    <div className="text-xs text-red-600">Owes: ${selectedCustomer.debtBalance.toFixed(3)}</div>
+                    <div className="text-xs font-medium text-rose-400 mt-0.5">Owes: ${selectedCustomer.debtBalance.toFixed(3)}</div>
                   )}
                 </div>
               ) : (
-                'Select Customer'
+                <span className="font-medium">Select Customer for Order</span>
               )}
             </span>
           </button>
@@ -1709,44 +1725,47 @@ export default function DirectSales() {
         {salesMode === 'sale' && (
           <>
             {/* Cart Items */}
-            <div className="flex-1 overflow-auto p-4">
+            <div className="flex-1 overflow-auto p-4 custom-scrollbar">
               {cart.length === 0 ? (
-                <div className="text-center py-8 text-gray-400">
-                  <p>Cart is empty</p>
-                  <p className="text-sm mt-1">Add products from the left</p>
+                <div className="flex flex-col items-center justify-center h-full text-slate-500 py-12">
+                  <div className="w-16 h-16 bg-slate-900 rounded-full flex items-center justify-center mx-auto mb-3 border border-slate-800">
+                    <ShoppingCart size={24} className="text-slate-600" />
+                  </div>
+                  <p className="font-medium text-slate-400">Cart is empty</p>
+                  <p className="text-xs mt-1 text-slate-500">Add products from the left</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {cart.map((item, idx) => (
-                    <div key={`${item.product.productId}-${item.unitType}-${item.variantId || 0}`} className="bg-gray-50 rounded-lg p-3">
-                      <div className="flex justify-between items-start mb-2">
+                    <div key={`${item.product.productId}-${item.unitType}-${item.variantId || 0}`} className="bg-slate-900/80 rounded-xl p-4 border border-slate-800/80 group">
+                      <div className="flex justify-between items-start mb-3">
                         <div className="flex-1">
-                          <div className="font-medium text-sm">
+                          <div className="font-bold text-sm text-slate-200">
                             {item.product.productName}
                             {item.variantName && (
-                              <span className="ml-1 px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[10px] font-medium">{item.variantName}</span>
+                              <span className="ml-2 px-2 py-0.5 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-md text-[10px] font-bold uppercase tracking-wider">{item.variantName}</span>
                             )}
                           </div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-slate-500 mt-1 font-medium">
                             {item.unitType === 'box' ? item.product.secondUnit : item.product.baseUnit} × {item.product.currency} {item.unitPrice.toFixed(3)}
                             {companySettings.showSecondaryPrice && (
-                              <span className="text-orange-500 ml-1">({(item.unitPrice * companySettings.exchangeRate).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')})</span>
+                              <span className="text-amber-400/80 ml-1">({(item.unitPrice * companySettings.exchangeRate).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')})</span>
                             )}
                           </div>
                         </div>
                         <button
                           onClick={() => removeFromCart(item.product.productId, item.unitType, item.variantId)}
-                          className="p-1 text-gray-400 hover:text-red-600"
+                          className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-md transition-colors opacity-50 group-hover:opacity-100"
                         >
                           <Trash2 size={16} />
                         </button>
                       </div>
                       
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 bg-slate-950 rounded-lg border border-slate-700/50 p-1">
                           <button
                             onClick={() => updateQuantity(item.product.productId, item.unitType, item.variantId, -1)}
-                            className="p-1 rounded bg-white border hover:bg-gray-100"
+                            className="p-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
                           >
                             <Minus size={14} />
                           </button>
@@ -1755,32 +1774,32 @@ export default function DirectSales() {
                             min="1"
                             value={item.quantity}
                             onChange={(e) => setQuantity(item.product.productId, item.unitType, item.variantId, parseInt(e.target.value) || 0)}
-                            className="w-12 text-center font-medium border rounded px-1 py-0.5"
+                            className="w-10 text-center font-bold bg-transparent text-slate-200 border-none focus:ring-0 p-0 text-sm"
                           />
                           <button
                             onClick={() => updateQuantity(item.product.productId, item.unitType, item.variantId, 1)}
-                            className="p-1 rounded bg-white border hover:bg-gray-100"
+                            className="p-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
                           >
                             <Plus size={14} />
                           </button>
                         </div>
                         
                         <div className="text-right">
-                          <div className="font-medium">{item.product.currency} {(item.quantity * item.unitPrice - item.discount).toFixed(3)}</div>
+                          <div className="font-bold text-cyan-400">{item.product.currency} {(item.quantity * item.unitPrice - item.discount).toFixed(3)}</div>
                           {companySettings.showSecondaryPrice && (
-                            <div className="text-xs text-orange-500">{((item.quantity * item.unitPrice - item.discount) * companySettings.exchangeRate).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</div>
+                            <div className="text-xs text-amber-400 font-medium">{((item.quantity * item.unitPrice - item.discount) * companySettings.exchangeRate).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</div>
                           )}
                           {item.discount > 0 && (
-                            <div className="text-xs text-green-600">-{item.product.currency} {item.discount.toFixed(3)}</div>
+                            <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mt-0.5">-{item.product.currency} {item.discount.toFixed(3)} Disc.</div>
                           )}
                         </div>
                       </div>
 
                       <button
                         onClick={() => { setEditingDiscount(idx); setDiscountValue(item.discount.toString()) }}
-                        className="mt-2 text-xs text-blue-600 hover:underline"
+                        className="mt-3 text-xs font-medium text-cyan-500/80 hover:text-cyan-400 transition-colors flex items-center gap-1"
                       >
-                        {item.discount > 0 ? 'Edit discount' : 'Add discount'}
+                        {item.discount > 0 ? 'Edit discount amount' : '+ Add discount'}
                       </button>
                     </div>
                   ))}
@@ -1792,10 +1811,10 @@ export default function DirectSales() {
 
         {/* RETURN/EXCHANGE MODE - Split Baskets */}
         {salesMode === 'return' && (
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 overflow-auto custom-scrollbar">
             {/* Return Basket */}
             <div 
-              className={`border-b ${dragOverZone === 'return' ? 'bg-orange-50' : ''}`}
+              className={`border-b border-slate-800 ${dragOverZone === 'return' ? 'bg-rose-500/5' : ''}`}
               onDragOver={(e) => { e.preventDefault(); setDragOverZone('return') }}
               onDragLeave={() => setDragOverZone(null)}
               onDrop={(e) => {
@@ -1808,62 +1827,65 @@ export default function DirectSales() {
                 }
               }}
             >
-              <div className="px-4 py-2 bg-orange-100 flex items-center justify-between">
+              <div className="px-4 py-2.5 bg-rose-500/10 border-y border-rose-500/20 flex items-center justify-between sticky top-0 z-10 backdrop-blur-md">
                 <div className="flex items-center gap-2">
-                  <Undo2 size={16} className="text-orange-600" />
-                  <span className="font-medium text-orange-800">Return Basket</span>
+                  <Undo2 size={16} className="text-rose-400" />
+                  <span className="font-bold text-rose-400 uppercase tracking-wider text-xs">Return Basket</span>
                 </div>
-                <span className="text-sm text-orange-600">{returnTotal.toFixed(3)}</span>
+                <span className="font-bold text-rose-400">${returnTotal.toFixed(3)}</span>
               </div>
               
-              <div className="p-3 space-y-2 min-h-[100px]">
+              <div className="p-4 space-y-3 min-h-[120px]">
                 {returnBasket.length === 0 ? (
-                  <div className="text-center py-4 text-gray-400 text-sm">
-                    <p>Drop items here to return</p>
+                  <div className="text-center py-6 text-slate-500 text-sm">
+                    <div className="w-12 h-12 bg-slate-900 rounded-full flex items-center justify-center mx-auto mb-2 border border-slate-800 border-dashed">
+                      <Undo2 size={20} className="text-slate-600" />
+                    </div>
+                    <p className="font-medium text-slate-400">Drop items here to return</p>
                   </div>
                 ) : (
                   returnBasket.map(item => (
-                    <div key={item.originalOrderItemId} className="bg-orange-50 rounded-lg p-3 border border-orange-200">
-                      <div className="flex justify-between items-start mb-2">
+                    <div key={item.originalOrderItemId} className="bg-slate-900/80 rounded-xl p-4 border border-rose-500/30">
+                      <div className="flex justify-between items-start mb-3">
                         <div className="flex-1">
-                          <div className="font-medium text-sm">{item.productName}</div>
-                          <div className="text-xs text-gray-500">{item.productSku}</div>
+                          <div className="font-bold text-sm text-slate-200">{item.productName}</div>
+                          <div className="text-xs text-slate-500 font-mono mt-0.5">{item.productSku}</div>
                         </div>
                         <button
                           onClick={() => removeFromReturnBasket(item.originalOrderItemId)}
-                          className="p-1 text-gray-400 hover:text-red-600"
+                          className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-md transition-colors"
                         >
                           <Trash2 size={14} />
                         </button>
                       </div>
                       
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-1 bg-slate-950 rounded-lg border border-slate-700/50 p-1">
                           <button
                             onClick={() => updateReturnQuantity(item.originalOrderItemId, item.quantity - 1)}
-                            className="p-1 rounded bg-white border hover:bg-gray-100"
+                            className="p-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
                           >
                             <Minus size={12} />
                           </button>
-                          <span className="w-8 text-center font-medium">{item.quantity}</span>
+                          <span className="w-8 text-center font-bold text-slate-200 text-sm">{item.quantity}</span>
                           <button
                             onClick={() => updateReturnQuantity(item.originalOrderItemId, item.quantity + 1)}
                             disabled={item.quantity >= item.maxReturnableQty}
-                            className="p-1 rounded bg-white border hover:bg-gray-100 disabled:opacity-50"
+                            className="p-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
                           >
                             <Plus size={12} />
                           </button>
-                          <span className="text-xs text-gray-500">/ {item.maxReturnableQty}</span>
+                          <span className="text-[10px] font-bold text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded mx-1">MAX {item.maxReturnableQty}</span>
                         </div>
-                        <div className="font-medium text-orange-700">{item.lineTotal.toFixed(3)}</div>
+                        <div className="font-bold text-rose-400">${item.lineTotal.toFixed(3)}</div>
                       </div>
 
                       {/* Return Reason & Condition */}
-                      <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="grid grid-cols-2 gap-2 text-xs mb-2">
                         <select
                           value={item.reason}
                           onChange={(e) => updateReturnItemProps(item.originalOrderItemId, { reason: e.target.value })}
-                          className="px-2 py-1 border rounded bg-white"
+                          className="px-2.5 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-slate-300 focus:ring-1 focus:ring-rose-500 outline-none"
                         >
                           {RETURN_REASONS.map(r => (
                             <option key={r.value} value={r.value}>{r.label}</option>
@@ -1872,7 +1894,7 @@ export default function DirectSales() {
                         <select
                           value={item.condition}
                           onChange={(e) => updateReturnItemProps(item.originalOrderItemId, { condition: e.target.value })}
-                          className="px-2 py-1 border rounded bg-white"
+                          className="px-2.5 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-slate-300 focus:ring-1 focus:ring-rose-500 outline-none"
                         >
                           {ITEM_CONDITIONS.map(c => (
                             <option key={c.value} value={c.value}>{c.label}</option>
@@ -1882,7 +1904,7 @@ export default function DirectSales() {
                       <select
                         value={item.inventoryAction}
                         onChange={(e) => updateReturnItemProps(item.originalOrderItemId, { inventoryAction: e.target.value })}
-                        className="w-full mt-2 px-2 py-1 border rounded bg-white text-xs"
+                        className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-slate-300 focus:ring-1 focus:ring-rose-500 outline-none text-xs"
                       >
                         {INVENTORY_ACTIONS.map(a => (
                           <option key={a.value} value={a.value}>{a.label}</option>
@@ -1896,7 +1918,7 @@ export default function DirectSales() {
 
             {/* Exchange/Add Basket */}
             <div 
-              className={`${dragOverZone === 'exchange' ? 'bg-green-50' : ''}`}
+              className={`min-h-[150px] ${dragOverZone === 'exchange' ? 'bg-emerald-500/5' : ''}`}
               onDragOver={(e) => { e.preventDefault(); setDragOverZone('exchange') }}
               onDragLeave={() => setDragOverZone(null)}
               onDrop={(e) => {
@@ -1909,54 +1931,57 @@ export default function DirectSales() {
                 }
               }}
             >
-              <div className="px-4 py-2 bg-green-100 flex items-center justify-between">
+              <div className="px-4 py-2.5 bg-emerald-500/10 border-y border-emerald-500/20 flex items-center justify-between sticky top-0 z-10 backdrop-blur-md">
                 <div className="flex items-center gap-2">
-                  <ArrowLeftRight size={16} className="text-green-600" />
-                  <span className="font-medium text-green-800">Exchange / Add Basket</span>
+                  <ArrowLeftRight size={16} className="text-emerald-400" />
+                  <span className="font-bold text-emerald-400 uppercase tracking-wider text-xs">Exchange / Add Basket</span>
                 </div>
-                <span className="text-sm text-green-600">${exchangeTotal.toFixed(3)}</span>
+                <span className="font-bold text-emerald-400">${exchangeTotal.toFixed(3)}</span>
               </div>
               
-              <div className="p-3 space-y-2 min-h-[100px]">
+              <div className="p-4 space-y-3">
                 {exchangeBasket.length === 0 ? (
-                  <div className="text-center py-4 text-gray-400 text-sm">
-                    <p>Drop products here to add/exchange</p>
+                  <div className="text-center py-6 text-slate-500 text-sm">
+                    <div className="w-12 h-12 bg-slate-900 rounded-full flex items-center justify-center mx-auto mb-2 border border-slate-800 border-dashed">
+                      <Package size={20} className="text-slate-600" />
+                    </div>
+                    <p className="font-medium text-slate-400">Drop products here to add</p>
                   </div>
                 ) : (
                   exchangeBasket.map(item => (
-                    <div key={`${item.product.productId}-${item.unitType}`} className="bg-green-50 rounded-lg p-3 border border-green-200">
-                      <div className="flex justify-between items-start mb-2">
+                    <div key={`${item.product.productId}-${item.unitType}`} className="bg-slate-900/80 rounded-xl p-4 border border-emerald-500/30">
+                      <div className="flex justify-between items-start mb-3">
                         <div className="flex-1">
-                          <div className="font-medium text-sm">{item.product.productName}</div>
-                          <div className="text-xs text-gray-500">
+                          <div className="font-bold text-sm text-slate-200">{item.product.productName}</div>
+                          <div className="text-xs text-slate-500 font-medium mt-1">
                             {item.unitType === 'box' ? item.product.secondUnit : item.product.baseUnit} × {item.product.currency} {item.unitPrice.toFixed(3)}
                           </div>
                         </div>
                         <button
                           onClick={() => removeFromExchangeBasket(item.product.productId, item.unitType)}
-                          className="p-1 text-gray-400 hover:text-red-600"
+                          className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-md transition-colors"
                         >
                           <Trash2 size={14} />
                         </button>
                       </div>
                       
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 bg-slate-950 rounded-lg border border-slate-700/50 p-1">
                           <button
                             onClick={() => updateExchangeQuantity(item.product.productId, item.unitType, -1)}
-                            className="p-1 rounded bg-white border hover:bg-gray-100"
+                            className="p-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
                           >
                             <Minus size={12} />
                           </button>
-                          <span className="w-8 text-center font-medium">{item.quantity}</span>
+                          <span className="w-8 text-center font-bold text-slate-200 text-sm">{item.quantity}</span>
                           <button
                             onClick={() => updateExchangeQuantity(item.product.productId, item.unitType, 1)}
-                            className="p-1 rounded bg-white border hover:bg-gray-100"
+                            className="p-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
                           >
                             <Plus size={12} />
                           </button>
                         </div>
-                        <div className="font-medium text-green-700">{item.product.currency} {(item.quantity * item.unitPrice - item.discount).toFixed(3)}</div>
+                        <div className="font-bold text-emerald-400">{item.product.currency} {(item.quantity * item.unitPrice - item.discount).toFixed(3)}</div>
                       </div>
                     </div>
                   ))
@@ -1968,30 +1993,30 @@ export default function DirectSales() {
 
         {/* Totals & Payment - SALE MODE */}
         {salesMode === 'sale' && (
-          <div className="border-t p-4 space-y-3">
+          <div className="border-t border-slate-800 bg-slate-900/80 p-5 space-y-4 shrink-0">
             <input
               type="text"
               value={orderNotes}
               onChange={(e) => setOrderNotes(e.target.value)}
-              placeholder="Order notes..."
-              className="w-full px-3 py-2 border rounded-lg text-sm"
+              placeholder="Order notes (optional)..."
+              className="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm focus:ring-1 focus:ring-cyan-500 outline-none text-slate-200 placeholder-slate-600 transition-all"
             />
 
-            <div className="space-y-1">
+            <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2">
               {hasMultiCurrency ? (
                 <>
                   {Object.entries(cartByCurrency).map(([cur, data]: [string, any]) => (
                     <div key={cur} className="flex justify-between text-sm">
-                      <span>{cur} Total ({data.items} items)</span>
-                      <span className="font-medium">{cur} {data.total.toFixed(3)}</span>
+                      <span className="text-slate-400">{cur} Subtotal ({data.items} items)</span>
+                      <span className="font-medium text-slate-300">{cur} {data.total.toFixed(3)}</span>
                     </div>
                   ))}
-                  <div className="border-t pt-1 mt-1">
+                  <div className="border-t border-slate-800 pt-2 mt-2">
                     <div className="flex justify-between text-lg font-bold">
-                      <span>Total ({baseCurrencyCode})</span>
-                      <span>{baseCurrencyCode} {cartTotalInBase.toFixed(3)}</span>
+                      <span className="text-slate-200">Total ({baseCurrencyCode})</span>
+                      <span className="text-cyan-400">{baseCurrencyCode} {cartTotalInBase.toFixed(3)}</span>
                     </div>
-                    <div className="text-xs text-gray-400 text-right">
+                    <div className="text-[10px] text-slate-500 text-right mt-1 font-mono">
                       {Object.keys(cartByCurrency).filter(c => c !== baseCurrencyCode).map(cur => {
                         const curData = currencies.find(c => c.code === cur)
                         return `1 ${baseCurrencyCode} = ${curData?.exchangeRate || 1} ${cur}`
@@ -2002,25 +2027,25 @@ export default function DirectSales() {
               ) : (
                 <>
                   <div className="flex justify-between text-sm">
-                    <span>Subtotal</span>
-                    <span>{Object.keys(cartByCurrency)[0] || ''} {cartSubtotal.toFixed(3)}</span>
+                    <span className="text-slate-400">Subtotal</span>
+                    <span className="font-medium text-slate-300">{Object.keys(cartByCurrency)[0] || ''} {cartSubtotal.toFixed(3)}</span>
                   </div>
                   {cartDiscount > 0 && (
-                    <div className="flex justify-between text-sm text-green-600">
-                      <span>Discount</span>
-                      <span>-{Object.keys(cartByCurrency)[0] || ''} {cartDiscount.toFixed(3)}</span>
+                    <div className="flex justify-between text-sm text-emerald-400">
+                      <span>Total Discount</span>
+                      <span className="font-bold">-{Object.keys(cartByCurrency)[0] || ''} {cartDiscount.toFixed(3)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between text-lg font-bold">
-                    <span>Total</span>
-                    <span>{Object.keys(cartByCurrency)[0] || ''} {cartTotal.toFixed(3)}</span>
+                  <div className="flex justify-between text-xl font-bold border-t border-slate-800 pt-2 mt-1">
+                    <span className="text-slate-200">Total</span>
+                    <span className="text-cyan-400">{Object.keys(cartByCurrency)[0] || ''} {cartTotal.toFixed(3)}</span>
                   </div>
                 </>
               )}
               {companySettings.showSecondaryPrice && (
-                <div className="flex justify-between text-sm text-orange-500 font-medium">
-                  <span>2nd Price</span>
-                  <span>{(cartTotal * companySettings.exchangeRate).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
+                <div className="flex justify-between text-sm font-medium mt-1 bg-amber-500/5 px-3 py-1.5 rounded-lg border border-amber-500/10">
+                  <span className="text-amber-500/80">Local Currency</span>
+                  <span className="text-amber-400">{(cartTotal * companySettings.exchangeRate).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</span>
                 </div>
               )}
             </div>
@@ -2028,8 +2053,8 @@ export default function DirectSales() {
             <div className="flex gap-2">
               <button
                 onClick={() => setPaymentType('cash')}
-                className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-1 text-sm ${
-                  paymentType === 'cash' ? 'bg-green-600 text-white' : 'bg-gray-100'
+                className={`flex-1 py-2.5 rounded-xl flex items-center justify-center gap-1.5 text-sm font-bold transition-all ${
+                  paymentType === 'cash' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-900/30' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
                 }`}
               >
                 <DollarSign size={16} />
@@ -2037,8 +2062,8 @@ export default function DirectSales() {
               </button>
               <button
                 onClick={() => setPaymentType('credit')}
-                className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-1 text-sm ${
-                  paymentType === 'credit' ? 'bg-orange-600 text-white' : 'bg-gray-100'
+                className={`flex-1 py-2.5 rounded-xl flex items-center justify-center gap-1.5 text-sm font-bold transition-all ${
+                  paymentType === 'credit' ? 'bg-purple-600 text-white shadow-lg shadow-purple-900/30' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
                 }`}
               >
                 <CreditCard size={16} />
@@ -2046,8 +2071,8 @@ export default function DirectSales() {
               </button>
               <button
                 onClick={() => setPaymentType('split')}
-                className={`flex-1 py-2 rounded-lg text-sm ${
-                  paymentType === 'split' ? 'bg-blue-600 text-white' : 'bg-gray-100'
+                className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                  paymentType === 'split' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/30' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
                 }`}
               >
                 Split
@@ -2055,19 +2080,22 @@ export default function DirectSales() {
             </div>
 
             {paymentType === 'split' && !hasMultiCurrency && (
-              <input
-                type="number"
-                value={cashAmount}
-                onChange={(e) => setCashAmount(e.target.value)}
-                placeholder="Cash amount..."
-                className="w-full px-3 py-2 border rounded-lg text-sm"
-              />
+              <div className="relative">
+                <DollarSign size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input
+                  type="number"
+                  value={cashAmount}
+                  onChange={(e) => setCashAmount(e.target.value)}
+                  placeholder="Enter cash amount..."
+                  className="w-full pl-11 pr-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-sm focus:ring-1 focus:ring-emerald-500 outline-none text-slate-200 font-medium transition-all"
+                />
+              </div>
             )}
 
             {/* Multi-currency payment inputs */}
             {paymentType !== 'credit' && cart.length > 0 && (
-              <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-                <p className="text-xs font-semibold text-gray-600 uppercase">Pay using</p>
+              <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Select Payment Currencies</p>
                 {(() => {
                   const cartCurs = Object.keys(cartByCurrency)
                   const allCurs = [...new Set([...cartCurs, ...currencies.filter(c => c.isActive).map(c => c.code)])]
@@ -2113,21 +2141,26 @@ export default function DirectSales() {
                     const isSelected = pc?.selected || false
                     const cartHas = cartCurs.includes(cur)
                     return (
-                      <div key={cur}>
-                        <label className="flex items-center gap-2 cursor-pointer">
+                      <div key={cur} className="transition-all">
+                        <label className="flex items-center gap-3 cursor-pointer group">
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                            isSelected ? 'bg-cyan-500 border-cyan-500' : 'bg-slate-900 border-slate-700 group-hover:border-slate-500'
+                          }`}>
+                            {isSelected && <Check size={12} className="text-slate-900" />}
+                          </div>
                           <input
                             type="checkbox"
                             checked={isSelected}
                             onChange={(e) => toggleCurrency(cur, e.target.checked)}
-                            className="rounded border-gray-300"
+                            className="hidden"
                           />
-                          <span className={`text-sm font-medium ${cartHas ? 'text-gray-900' : 'text-gray-500'}`}>
+                          <span className={`text-sm font-bold ${cartHas ? 'text-slate-200' : 'text-slate-500'}`}>
                             {cur}
-                            {cartHas && <span className="text-xs text-gray-400 ml-1">(in cart: {cur} {cartByCurrency[cur].total.toFixed(3)})</span>}
+                            {cartHas && <span className="text-[10px] text-slate-500 ml-2 font-medium bg-slate-800 px-1.5 py-0.5 rounded">(Cart Total: {cur} {cartByCurrency[cur].total.toFixed(3)})</span>}
                           </span>
                         </label>
                         {isSelected && (
-                          <div className="ml-6 mt-1">
+                          <div className="ml-7 mt-2 mb-3">
                             <input
                               type="number"
                               step="0.001"
@@ -2137,7 +2170,7 @@ export default function DirectSales() {
                                 [cur]: { ...prev[cur], amount: e.target.value }
                               }))}
                               placeholder={`Amount in ${cur}...`}
-                              className="w-full px-3 py-1.5 border rounded-lg text-sm"
+                              className="w-full px-3 py-2 bg-slate-900 border border-cyan-500/30 rounded-lg text-sm focus:ring-1 focus:ring-cyan-500 outline-none text-cyan-400 font-bold"
                             />
                           </div>
                         )}
@@ -2145,183 +2178,117 @@ export default function DirectSales() {
                     )
                   })
                 })()}
-                {/* Show payment summary */}
-                {Object.values(paymentCurrencies).some(pc => pc.selected) && (() => {
-                  const selectedEntries = Object.entries(paymentCurrencies).filter(([, pc]) => pc.selected && parseFloat(pc.amount) > 0)
-                  const payingInBase = selectedEntries.reduce((sum, [cur, pc]) => {
-                    const curData = currencies.find(c => c.code === cur)
-                    const rate = curData?.exchangeRate || 1
-                    return sum + (parseFloat(pc.amount) / rate)
-                  }, 0)
-                  const requiredInBase = hasMultiCurrency ? cartTotalInBase : cartTotal
-                  const diff = payingInBase - requiredInBase
-                  return (
-                    <div className="border-t pt-2 mt-2 space-y-1">
-                      <p className="text-xs font-semibold text-gray-500">Payment Summary</p>
-                      {selectedEntries.map(([cur, pc]) => (
-                        <div key={cur} className="flex justify-between text-sm">
-                          <span className="text-gray-700">{cur}</span>
-                          <span className="font-medium">{cur} {parseFloat(pc.amount).toFixed(3)}</span>
-                        </div>
-                      ))}
-                      {selectedEntries.length > 1 && (
-                        <div className="flex justify-between text-xs text-gray-500 border-t pt-1">
-                          <span>= {baseCurrencyCode} equivalent</span>
-                          <span className="font-semibold">{baseCurrencyCode} {payingInBase.toFixed(3)}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between text-xs text-gray-500">
-                        <span>Required ({baseCurrencyCode})</span>
-                        <span className="font-semibold">{baseCurrencyCode} {requiredInBase.toFixed(3)}</span>
-                      </div>
-                      {Math.abs(diff) > 0.01 && (
-                        <div className={`flex justify-between text-xs font-semibold ${diff > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          <span>{diff > 0 ? 'Change:' : 'Short:'}</span>
-                          <span>{baseCurrencyCode} {Math.abs(diff).toFixed(3)}</span>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })()}
               </div>
             )}
 
             {!selectedCustomer && cart.length > 0 && (
-              <div className="flex items-center gap-2 text-blue-600 bg-blue-50 p-2 rounded-lg text-sm">
-                <AlertCircle size={16} />
-                <span>No customer selected — will use walk-in (----)</span>
+              <div className="flex items-center gap-2 text-amber-400 bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl text-sm font-medium">
+                <AlertCircle size={18} className="shrink-0" />
+                <span>No customer selected — will check out as walk-in.</span>
               </div>
             )}
 
-            <div className="flex gap-2">
-              <button
-                onClick={handleSaveAsQuote}
-                disabled={!selectedCustomer || cart.length === 0 || savingQuote}
-                className="flex-1 py-3 bg-amber-500 text-white rounded-lg font-medium hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {savingQuote ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <FileText size={18} />
-                    Save as Quote
-                  </>
-                )}
-              </button>
-              <button
-                onClick={handleSubmitOrder}
-                disabled={cart.length === 0 || !selectedWarehouse || submitting}
-                className="flex-1 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {submitting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <Check size={18} />
-                    Complete Sale
-                  </>
-                )}
-              </button>
+            <div className="flex flex-col gap-3 pt-2">
+              <div className="flex gap-3">
+                <button
+                  onClick={handleSaveAsQuote}
+                  disabled={!selectedCustomer || cart.length === 0 || savingQuote}
+                  className="flex-1 py-3 bg-slate-800 border border-slate-700 text-cyan-400 rounded-xl font-bold hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all"
+                >
+                  {savingQuote ? (
+                    <><Loader2 size={16} className="animate-spin" /> Saving...</>
+                  ) : (
+                    <><FileText size={16} /> Save Quote</>
+                  )}
+                </button>
+                <button
+                  onClick={handleSubmitOrder}
+                  disabled={cart.length === 0 || submitting}
+                  className="flex-2 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-xl font-bold hover:from-cyan-500 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-cyan-900/30 transition-all"
+                >
+                  {submitting ? (
+                    <><Loader2 size={18} className="animate-spin" /> Processing...</>
+                  ) : (
+                    <><Check size={18} /> Complete Sale</>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Totals & Settlement - RETURN/EXCHANGE MODE */}
+        {/* Totals & Payment - RETURN/EXCHANGE MODE */}
         {salesMode === 'return' && (
-          <div className="border-t p-4 space-y-3">
+          <div className="border-t border-slate-800 bg-slate-900/80 p-5 space-y-4 shrink-0">
             <input
               type="text"
               value={returnNotes}
               onChange={(e) => setReturnNotes(e.target.value)}
-              placeholder="Return notes / reason..."
-              className="w-full px-3 py-2 border rounded-lg text-sm"
+              placeholder="Return/Exchange notes..."
+              className="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm focus:ring-1 focus:ring-cyan-500 outline-none text-slate-200 placeholder-slate-600 transition-all"
             />
-
-            {/* Net Result Display */}
-            <div className={`p-4 rounded-lg ${
-              netAmount === 0 ? 'bg-blue-50 border border-blue-200' :
-              netAmount < 0 ? 'bg-orange-50 border border-orange-200' :
-              'bg-green-50 border border-green-200'
-            }`}>
-              <div className="text-center">
-                <div className="text-sm text-gray-600 mb-1">Net Result</div>
-                <div className={`text-2xl font-bold ${
-                  netAmount === 0 ? 'text-blue-600' :
-                  netAmount < 0 ? 'text-orange-600' :
-                  'text-green-600'
-                }`}>
-                  {netAmount === 0 ? 'Even Exchange' :
-                   netAmount < 0 ? `Refund Due: $${Math.abs(netAmount).toFixed(3)}` :
-                   `Customer Pays: $${netAmount.toFixed(3)}`}
-                </div>
+            
+            <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400 font-medium">Return Value</span>
+                <span className="text-rose-400 font-bold">-${returnTotal.toFixed(3)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-400 font-medium">Exchange Value</span>
+                <span className="text-emerald-400 font-bold">+${exchangeTotal.toFixed(3)}</span>
               </div>
               
-              <div className="mt-3 pt-3 border-t border-gray-200 grid grid-cols-2 gap-2 text-sm">
-                <div className="text-center">
-                  <div className="text-gray-500">Return Total</div>
-                  <div className="font-medium text-orange-600">-${returnTotal.toFixed(3)}</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-gray-500">Exchange Total</div>
-                  <div className="font-medium text-green-600">+${exchangeTotal.toFixed(3)}</div>
-                </div>
+              <div className="flex justify-between text-lg font-bold border-t border-slate-800 pt-3 mt-2">
+                <span className="text-slate-200">Net Balance</span>
+                <span className={netAmount < 0 ? 'text-rose-400' : netAmount > 0 ? 'text-cyan-400' : 'text-slate-400'}>
+                  {netAmount < 0 ? '-' : netAmount > 0 ? '+' : ''}${Math.abs(netAmount).toFixed(3)}
+                </span>
               </div>
             </div>
 
-            {/* Refund Method (when refund is due) */}
             {netAmount < 0 && (
               <div className="space-y-2">
-                <div className="text-sm font-medium text-gray-700">Refund Method</div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Refund Method</label>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setRefundMethod('cash')}
-                    className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-1 text-sm ${
-                      refundMethod === 'cash' ? 'bg-orange-600 text-white' : 'bg-gray-100'
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                      refundMethod === 'cash' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-900/30' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
                     }`}
                   >
-                    <DollarSign size={16} />
-                    Cash
+                    Cash Refund
                   </button>
                   <button
-                    onClick={() => setRefundMethod('store_credit')}
-                    className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-1 text-sm ${
-                      refundMethod === 'store_credit' ? 'bg-purple-600 text-white' : 'bg-gray-100'
+                    onClick={() => setRefundMethod('credit')}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                      refundMethod === 'credit' ? 'bg-purple-600 text-white shadow-lg shadow-purple-900/30' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
                     }`}
                   >
-                    <CreditCard size={16} />
                     Store Credit
                   </button>
                 </div>
               </div>
             )}
 
-            {/* Payment Method (when customer pays extra) */}
             {netAmount > 0 && (
               <div className="space-y-2">
-                <div className="text-sm font-medium text-gray-700">Payment Method</div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Payment Collection</label>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setPaymentType('cash')}
-                    className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-1 text-sm ${
-                      paymentType === 'cash' ? 'bg-green-600 text-white' : 'bg-gray-100'
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                      paymentType === 'cash' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/30' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
                     }`}
                   >
-                    <DollarSign size={16} />
                     Cash
                   </button>
                   <button
                     onClick={() => setPaymentType('credit')}
-                    className={`flex-1 py-2 rounded-lg flex items-center justify-center gap-1 text-sm ${
-                      paymentType === 'credit' ? 'bg-orange-600 text-white' : 'bg-gray-100'
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                      paymentType === 'credit' ? 'bg-purple-600 text-white shadow-lg shadow-purple-900/30' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
                     }`}
                   >
-                    <CreditCard size={16} />
+                    <CreditCard size={16} className="inline mr-1" />
                     Credit
                   </button>
                 </div>
@@ -2330,15 +2297,15 @@ export default function DirectSales() {
 
             {/* Warnings */}
             {!loadedOrder && (
-              <div className="flex items-center gap-2 text-amber-600 bg-amber-50 p-2 rounded-lg text-sm">
-                <AlertCircle size={16} />
+              <div className="flex items-center gap-2 text-amber-400 bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl text-sm font-medium">
+                <AlertCircle size={18} className="shrink-0" />
                 <span>Load an invoice first</span>
               </div>
             )}
 
             {loadedOrder && returnBasket.length === 0 && exchangeBasket.length === 0 && (
-              <div className="flex items-center gap-2 text-amber-600 bg-amber-50 p-2 rounded-lg text-sm">
-                <AlertCircle size={16} />
+              <div className="flex items-center gap-2 text-amber-400 bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl text-sm font-medium">
+                <AlertCircle size={18} className="shrink-0" />
                 <span>Add items to return or exchange</span>
               </div>
             )}
@@ -2347,17 +2314,17 @@ export default function DirectSales() {
             <button
               onClick={handleProcessReturnExchange}
               disabled={!loadedOrder || !selectedWarehouse || (returnBasket.length === 0 && exchangeBasket.length === 0) || processingReturn}
-              className="w-full py-3 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full py-3.5 bg-gradient-to-r from-orange-600 to-rose-600 text-white rounded-xl font-bold hover:from-orange-500 hover:to-rose-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-orange-900/30 transition-all mt-2"
             >
               {processingReturn ? (
                 <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <Loader2 size={18} className="animate-spin" />
                   Processing...
                 </>
               ) : (
                 <>
                   <Check size={18} />
-                  Complete Return / Exchange
+                  Complete {netAmount < 0 ? 'Refund' : netAmount > 0 ? 'Payment' : 'Exchange'}
                 </>
               )}
             </button>

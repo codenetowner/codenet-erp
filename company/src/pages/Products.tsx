@@ -652,47 +652,6 @@ export default function Products() {
     }
   }
 
-  const handleEdit = async (prod: Product) => {
-    setSelectedProduct(prod)
-    const hasSecondUnit = !!(prod.secondUnit && prod.secondUnit.trim() !== '' && prod.unitsPerSecond > 0)
-    setShowSecondUnit(hasSecondUnit)
-    setExistingProductStock(null)
-
-    setFormData({
-      sku: prod.sku,
-      barcode: prod.barcode || '',
-      boxBarcode: prod.boxBarcode || '',
-      name: prod.name,
-      nameAr: prod.nameAr || '',
-      description: prod.description || '',
-      categoryId: prod.categoryId?.toString() || '',
-      baseUnit: prod.baseUnit || 'Piece',
-      secondUnit: prod.secondUnit || '',
-      unitsPerSecond: prod.unitsPerSecond || 0,
-      currency: prod.currency || 'USD',
-      defaultWarehouseId: prod.defaultWarehouseId?.toString() || '',
-      retailPrice: prod.retailPrice,
-      wholesalePrice: prod.wholesalePrice,
-      superWholesalePrice: prod.superWholesalePrice,
-      costPrice: prod.costPrice,
-      boxRetailPrice: prod.boxRetailPrice,
-      boxWholesalePrice: prod.boxWholesalePrice,
-      boxSuperWholesalePrice: prod.boxSuperWholesalePrice,
-      boxCostPrice: prod.boxCostPrice,
-      isActive: prod.isActive,
-      showInOnlineShop: prod.showInOnlineShop || false,
-      imageUrl: prod.imageUrl || '',
-      color: prod.color || '',
-      size: prod.size || '',
-      weight: prod.weight?.toString() || '',
-      length: prod.length?.toString() || '',
-      height: prod.height?.toString() || '',
-      initialQuantity: 0,
-      initialQuantityBox: 0
-    })
-    setShowEditModal(true)
-  }
-
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedProduct) return

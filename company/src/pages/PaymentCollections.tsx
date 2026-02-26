@@ -120,91 +120,94 @@ export default function Cash() {
   const pendingDepositsAmount = filteredDeposits.filter(d => d.status === 'pending').reduce((sum, d) => sum + d.amount, 0)
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64"><Loader2 className="animate-spin" size={32} /></div>
+    return <div className="min-h-screen bg-slate-900 flex items-center justify-center"><Loader2 className="animate-spin text-cyan-400" size={32} /></div>
   }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Van Cash Management</h1>
+    <div className="min-h-screen bg-slate-900 text-slate-300 p-6 lg:p-8 font-sans selection:bg-cyan-500/30">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 tracking-tight">Payment Collections</h1>
+          <p className="text-slate-400 text-sm mt-1">Van cash balances and driver deposits</p>
+        </div>
         <button 
           onClick={loadData}
-          className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600"
+          className="flex items-center gap-2 px-5 py-2.5 bg-cyan-600 text-white rounded-xl hover:bg-cyan-500 transition-all font-medium text-sm shadow-lg shadow-cyan-900/30"
         >
           <RefreshCw size={18} /> Refresh
         </button>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-        <div className="bg-white rounded-xl shadow-sm p-5">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-emerald-100 rounded-xl">
-              <DollarSign className="text-emerald-600" size={24} />
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+        <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-5 hover:border-emerald-500/30 transition-all">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-emerald-500/10 rounded-xl">
+              <DollarSign className="text-emerald-400" size={24} />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Cash in Vans</p>
-              <p className="text-2xl font-bold text-emerald-600">${totalCashInVans.toFixed(2)}</p>
+              <p className="text-sm text-slate-500">Cash in Vans</p>
+              <p className="text-2xl font-bold text-emerald-400">${totalCashInVans.toFixed(2)}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-5">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-blue-100 rounded-xl">
-              <Download className="text-blue-600" size={24} />
+        <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-5 hover:border-cyan-500/30 transition-all">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-cyan-500/10 rounded-xl">
+              <Download className="text-cyan-400" size={24} />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total Deposits</p>
-              <p className="text-2xl font-bold text-blue-600">${totalDeposits.toFixed(2)}</p>
+              <p className="text-sm text-slate-500">Total Deposits</p>
+              <p className="text-2xl font-bold text-cyan-400">${totalDeposits.toFixed(2)}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-5">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-amber-100 rounded-xl">
-              <Clock className="text-amber-600" size={24} />
+        <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-5 hover:border-amber-500/30 transition-all">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-amber-500/10 rounded-xl">
+              <Clock className="text-amber-400" size={24} />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Pending Deposits</p>
-              <p className="text-2xl font-bold text-amber-600">${pendingDepositsAmount.toFixed(2)}</p>
+              <p className="text-sm text-slate-500">Pending Deposits</p>
+              <p className="text-2xl font-bold text-amber-400">${pendingDepositsAmount.toFixed(2)}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-5">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-green-100 rounded-xl">
-              <Check className="text-green-600" size={24} />
+        <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-5 hover:border-green-500/30 transition-all">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-green-500/10 rounded-xl">
+              <Check className="text-green-400" size={24} />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Confirmed Deposits</p>
-              <p className="text-2xl font-bold text-green-600">${confirmedDeposits.toFixed(2)}</p>
+              <p className="text-sm text-slate-500">Confirmed Deposits</p>
+              <p className="text-2xl font-bold text-green-400">${confirmedDeposits.toFixed(2)}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-5">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-purple-100 rounded-xl">
-              <Truck className="text-purple-600" size={24} />
+        <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-5 hover:border-purple-500/30 transition-all">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-purple-500/10 rounded-xl">
+              <Truck className="text-purple-400" size={24} />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Active Vans</p>
-              <p className="text-2xl font-bold text-purple-600">{vanCash.length}</p>
+              <p className="text-sm text-slate-500">Active Vans</p>
+              <p className="text-2xl font-bold text-purple-400">{vanCash.length}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl shadow-sm p-4 mb-4">
+      <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-4 mb-4">
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
-            <Filter size={18} className="text-gray-500" />
-            <span className="text-sm font-medium text-gray-700">Filters:</span>
+            <Filter size={18} className="text-slate-500" />
+            <span className="text-sm font-medium text-slate-400">Filters:</span>
           </div>
           <select
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value as any)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
+            className="px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-slate-200 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all"
           >
             <option value="today">Today</option>
             <option value="week">Last 7 Days</option>
@@ -215,7 +218,7 @@ export default function Cash() {
           <select
             value={driverFilter}
             onChange={(e) => setDriverFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
+            className="px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-slate-200 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all"
           >
             <option value="">All Drivers</option>
             {uniqueDrivers.map((d: any) => (
@@ -226,7 +229,7 @@ export default function Cash() {
             <select
               value={vanFilter}
               onChange={(e) => setVanFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
+              className="px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-slate-200 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all"
             >
               <option value="">All Vans</option>
               {uniqueVans.map((v: any) => (
@@ -238,7 +241,7 @@ export default function Cash() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
+              className="px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-slate-200 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all"
             >
               <option value="">All Status</option>
               <option value="pending">Pending</option>
@@ -253,20 +256,20 @@ export default function Cash() {
       <div className="flex gap-2 mb-4">
         <button
           onClick={() => setActiveTab('vans')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          className={`px-5 py-2.5 rounded-xl font-medium transition-all ${
             activeTab === 'vans' 
-              ? 'bg-emerald-500 text-white' 
-              : 'bg-white text-gray-600 hover:bg-gray-100'
+              ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-900/30' 
+              : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
           }`}
         >
           Van Cash ({filteredVanCash.length})
         </button>
         <button
           onClick={() => setActiveTab('deposits')}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          className={`px-5 py-2.5 rounded-xl font-medium transition-all ${
             activeTab === 'deposits' 
-              ? 'bg-emerald-500 text-white' 
-              : 'bg-white text-gray-600 hover:bg-gray-100'
+              ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-900/30' 
+              : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
           }`}
         >
           Deposits ({filteredDeposits.length})
@@ -280,62 +283,62 @@ export default function Cash() {
 
       {/* Van Cash Table */}
       {activeTab === 'vans' && (
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-        <div className="p-4 border-b bg-gray-50">
-          <h2 className="text-lg font-semibold text-gray-900">Van Cash Details</h2>
+      <div className="bg-slate-950/50 border border-slate-800 rounded-2xl overflow-hidden">
+        <div className="p-4 border-b border-slate-800 bg-slate-900/50">
+          <h2 className="text-lg font-bold text-white">Van Cash Details</h2>
         </div>
         <table className="w-full">
-          <thead className="bg-gray-50">
+          <thead className="bg-slate-900/80 border-b border-slate-800">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Van</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Driver</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Current Cash</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Max Cash</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Usage</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Last Updated</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Van</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Driver</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Current Cash</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Max Cash</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Usage</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Last Updated</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
+          <tbody className="divide-y divide-slate-800/50">
             {filteredVanCash.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">No van cash data found</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-500">No van cash data found</td></tr>
             ) : filteredVanCash.map((vc) => {
               const usagePercent = vc.maxCash > 0 ? (vc.currentBalance / vc.maxCash) * 100 : 0
               return (
-                <tr key={vc.vanId} className="hover:bg-gray-50">
+                <tr key={vc.vanId} className="hover:bg-slate-800/30 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <Truck size={18} className="text-gray-400" />
-                      <span className="font-medium">{vc.vanName}</span>
+                      <Truck size={18} className="text-slate-500" />
+                      <span className="font-medium text-slate-200">{vc.vanName}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-3">{vc.driverName || <span className="text-gray-400">Unassigned</span>}</td>
-                  <td className="px-4 py-3 font-bold text-emerald-600">${vc.currentBalance.toFixed(3)}</td>
-                  <td className="px-4 py-3 text-gray-600">${vc.maxCash.toFixed(3)}</td>
+                  <td className="px-4 py-3 text-slate-300">{vc.driverName || <span className="text-slate-600">Unassigned</span>}</td>
+                  <td className="px-4 py-3 font-bold text-emerald-400">${vc.currentBalance.toFixed(3)}</td>
+                  <td className="px-4 py-3 text-slate-400">${vc.maxCash.toFixed(3)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden max-w-[100px]">
+                      <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden max-w-[100px]">
                         <div 
                           className={`h-full rounded-full ${
-                            usagePercent > 80 ? 'bg-red-500' : 
+                            usagePercent > 80 ? 'bg-rose-500' : 
                             usagePercent > 50 ? 'bg-amber-500' : 'bg-emerald-500'
                           }`}
                           style={{ width: `${Math.min(usagePercent, 100)}%` }}
                         />
                       </div>
-                      <span className="text-xs text-gray-500">{usagePercent.toFixed(0)}%</span>
+                      <span className="text-xs text-slate-500">{usagePercent.toFixed(0)}%</span>
                     </div>
                   </td>
                   <td className="px-4 py-3">
                     {vc.currentBalance > vc.maxCash * 0.8 ? (
-                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">Needs Deposit</span>
+                      <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">Needs Deposit</span>
                     ) : vc.currentBalance > vc.maxCash * 0.5 ? (
-                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Medium</span>
+                      <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">Medium</span>
                     ) : (
-                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">Normal</span>
+                      <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Normal</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
+                  <td className="px-4 py-3 text-sm text-slate-500">
                     {new Date(vc.lastUpdated).toLocaleDateString()}
                   </td>
                 </tr>
@@ -348,55 +351,55 @@ export default function Cash() {
 
       {/* Deposits Table */}
       {activeTab === 'deposits' && (
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-        <div className="p-4 border-b bg-gray-50">
-          <h2 className="text-lg font-semibold text-gray-900">Driver Deposits</h2>
+      <div className="bg-slate-950/50 border border-slate-800 rounded-2xl overflow-hidden">
+        <div className="p-4 border-b border-slate-800 bg-slate-900/50">
+          <h2 className="text-lg font-bold text-white">Driver Deposits</h2>
         </div>
         <table className="w-full">
-          <thead className="bg-gray-50">
+          <thead className="bg-slate-900/80 border-b border-slate-800">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Deposit #</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Driver</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Amount</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Type</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Date</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Status</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Actions</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Deposit #</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Driver</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Amount</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Type</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Date</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
+          <tbody className="divide-y divide-slate-800/50">
             {filteredDeposits.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">No deposits found</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-500">No deposits found</td></tr>
             ) : filteredDeposits.map((deposit) => (
-              <tr key={deposit.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium">{deposit.depositNumber}</td>
-                <td className="px-4 py-3">{deposit.driverName}</td>
-                <td className="px-4 py-3 font-bold text-emerald-600">${deposit.amount.toFixed(2)}</td>
+              <tr key={deposit.id} className="hover:bg-slate-800/30 transition-colors">
+                <td className="px-4 py-3 font-bold text-cyan-400">{deposit.depositNumber}</td>
+                <td className="px-4 py-3 text-slate-200">{deposit.driverName}</td>
+                <td className="px-4 py-3 font-bold text-emerald-400">${deposit.amount.toFixed(2)}</td>
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 text-slate-300">
                     {deposit.depositType === 'bank' ? (
-                      <Building size={16} className="text-blue-500" />
+                      <Building size={16} className="text-cyan-400" />
                     ) : (
-                      <Warehouse size={16} className="text-amber-500" />
+                      <Warehouse size={16} className="text-amber-400" />
                     )}
                     <span className="capitalize">{deposit.depositType}</span>
-                    {deposit.bankName && <span className="text-gray-400 text-sm">({deposit.bankName})</span>}
+                    {deposit.bankName && <span className="text-slate-500 text-sm">({deposit.bankName})</span>}
                   </div>
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-600">
+                <td className="px-4 py-3 text-sm text-slate-400">
                   {new Date(deposit.depositDate).toLocaleDateString()}
                 </td>
                 <td className="px-4 py-3">
                   {deposit.status === 'pending' ? (
-                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 flex items-center gap-1 w-fit">
+                    <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1 w-fit">
                       <Clock size={12} /> Pending
                     </span>
                   ) : deposit.status === 'confirmed' ? (
-                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 flex items-center gap-1 w-fit">
+                    <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1 w-fit">
                       <Check size={12} /> Confirmed
                     </span>
                   ) : (
-                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 flex items-center gap-1 w-fit">
+                    <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center gap-1 w-fit">
                       <X size={12} /> Rejected
                     </span>
                   )}
@@ -407,7 +410,7 @@ export default function Cash() {
                       <button
                         onClick={() => handleUpdateDepositStatus(deposit.id, 'confirmed')}
                         disabled={updatingDeposit === deposit.id}
-                        className="p-2 bg-emerald-100 text-emerald-600 rounded-lg hover:bg-emerald-200 disabled:opacity-50"
+                        className="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg hover:bg-emerald-500/20 disabled:opacity-50 transition-colors"
                         title="Confirm"
                       >
                         {updatingDeposit === deposit.id ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
@@ -415,7 +418,7 @@ export default function Cash() {
                       <button
                         onClick={() => handleUpdateDepositStatus(deposit.id, 'rejected')}
                         disabled={updatingDeposit === deposit.id}
-                        className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 disabled:opacity-50"
+                        className="p-2 bg-rose-500/10 text-rose-400 rounded-lg hover:bg-rose-500/20 disabled:opacity-50 transition-colors"
                         title="Reject"
                       >
                         <X size={16} />
