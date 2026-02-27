@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 import { useAuthStore } from '../stores/authStore';
 
 const getBaseUrl = () => {
-  if (!__DEV__) return 'https://Catalyst-main-production.up.railway.app/api';
+  if (!__DEV__) return 'https://backend-production-c924.up.railway.app/api';
   // Web runs in browser — use localhost directly
   if (Platform.OS === 'web') return 'http://localhost:5227/api';
   // Android emulator uses 10.0.2.2 to reach host machine
