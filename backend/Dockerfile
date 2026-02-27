@@ -11,8 +11,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app
 COPY --from=build /app/publish .
 
-# Railway uses PORT environment variable
-ENV ASPNETCORE_URLS=http://+:${PORT:-8080}
+# Railway uses PORT environment variable (handled in Program.cs)
 ENV ASPNETCORE_ENVIRONMENT=Production
 
 EXPOSE 8080
