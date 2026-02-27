@@ -27,11 +27,13 @@ export interface Store {
   storeLat?: number;
   storeLng?: number;
   categories: string[];
+  rating?: number;
 }
 
 export interface Banner {
   id: number;
   title: string;
+  subtitle?: string;
   imageUrl: string;
   linkUrl?: string;
   companyId?: number;
