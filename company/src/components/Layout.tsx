@@ -52,118 +52,50 @@ import api from '../lib/api'
 const PAGE_META: Record<string, { label: string; icon: any; permission?: string }> = {
   'dashboard': { label: 'Dashboard', icon: LayoutDashboard, permission: PERMISSIONS.VIEW_DASHBOARD },
   // Sales & CRM
-  'crm-pipeline': { label: 'CRM / Pipeline', icon: UserPlus, permission: PERMISSIONS.VIEW_LEADS },
-  'quotations': { label: 'Quotations', icon: FileText, permission: PERMISSIONS.VIEW_QUOTES },
-  'sales-orders': { label: 'Sales Orders', icon: History, permission: PERMISSIONS.VIEW_DIRECT_SALES },
-  'point-of-sale': { label: 'Point of Sale (POS)', icon: ShoppingCart, permission: PERMISSIONS.VIEW_DIRECT_SALES },
-  'activities': { label: 'Activities', icon: ListChecks, permission: PERMISSIONS.VIEW_ORDERS },
-  'credit-notes': { label: 'Credit Notes / Refunds', icon: Receipt, permission: PERMISSIONS.VIEW_RETURNS },
-  'payment-collections': { label: 'Payment Collections', icon: HandCoins, permission: PERMISSIONS.VIEW_COLLECTIONS },
+  'leads': { label: 'CRM / Pipeline', icon: UserPlus, permission: PERMISSIONS.VIEW_LEADS },
+  'quotes': { label: 'Quotations', icon: FileText, permission: PERMISSIONS.VIEW_QUOTES },
+  'sales-history': { label: 'Sales Orders', icon: History, permission: PERMISSIONS.VIEW_DIRECT_SALES },
+  'direct-sales': { label: 'Point of Sale (POS)', icon: ShoppingCart, permission: PERMISSIONS.VIEW_DIRECT_SALES },
+  'tasks': { label: 'Activities', icon: ListChecks, permission: PERMISSIONS.VIEW_ORDERS },
+  'returns': { label: 'Credit Notes / Refunds', icon: Receipt, permission: PERMISSIONS.VIEW_RETURNS },
+  'cash': { label: 'Payment Collections', icon: HandCoins, permission: PERMISSIONS.VIEW_COLLECTIONS },
   // Inventory
   'products': { label: 'Products & Variants', icon: Package, permission: PERMISSIONS.VIEW_PRODUCTS },
-  'inventory-adjustments': { label: 'Inventory Adjustments', icon: ArrowUpDown, permission: PERMISSIONS.ADJUST_STOCK_LEVELS },
-  'locations-warehouses': { label: 'Locations & Warehouses', icon: Warehouse, permission: PERMISSIONS.VIEW_WAREHOUSES },
-  'inventory-valuation': { label: 'Inventory Valuation', icon: Scale, permission: PERMISSIONS.VIEW_INVENTORY_VALUATION },
-  'configuration': { label: 'Configuration', icon: SlidersHorizontal, permission: PERMISSIONS.EDIT_INVENTORY_SETTINGS },
+  'stock-adjustment': { label: 'Inventory Adjustments', icon: ArrowUpDown, permission: PERMISSIONS.ADJUST_STOCK_LEVELS },
+  'warehouses': { label: 'Locations & Warehouses', icon: Warehouse, permission: PERMISSIONS.VIEW_WAREHOUSES },
+  'valuation': { label: 'Inventory Valuation', icon: Scale, permission: PERMISSIONS.VIEW_INVENTORY_VALUATION },
+  'inventory-settings': { label: 'Configuration', icon: SlidersHorizontal, permission: PERMISSIONS.EDIT_INVENTORY_SETTINGS },
   // Manufacturing & Purchasing
-  'bill-of-materials': { label: 'Bill of Materials (BOM)', icon: Boxes, permission: PERMISSIONS.VIEW_PRODUCTS },
-  'purchase-orders': { label: 'Purchase Orders (PO)', icon: FileText, permission: PERMISSIONS.VIEW_SUPPLIERS },
-  'manufacturing-orders': { label: 'Manufacturing Orders (MO)', icon: Factory, permission: PERMISSIONS.VIEW_PRODUCTS },
+  'raw-materials': { label: 'Bill of Materials (BOM)', icon: Boxes, permission: PERMISSIONS.VIEW_PRODUCTS },
+  'raw-material-purchases': { label: 'Purchase Orders (PO)', icon: FileText, permission: PERMISSIONS.VIEW_SUPPLIERS },
+  'production-orders': { label: 'Manufacturing Orders (MO)', icon: Factory, permission: PERMISSIONS.VIEW_PRODUCTS },
   // Contacts
   'customers': { label: 'Customers', icon: Users, permission: PERMISSIONS.VIEW_CUSTOMERS },
-  'vendors': { label: 'Vendors', icon: TruckIcon, permission: PERMISSIONS.VIEW_SUPPLIERS },
+  'suppliers': { label: 'Vendors', icon: TruckIcon, permission: PERMISSIONS.VIEW_SUPPLIERS },
   // Human Resources
   'employees': { label: 'Employees', icon: UserCog, permission: PERMISSIONS.VIEW_EMPLOYEES },
-  'sales-teams': { label: 'Sales Teams', icon: Briefcase, permission: PERMISSIONS.VIEW_EMPLOYEES },
-  'fleet': { label: 'Fleet', icon: Truck, permission: PERMISSIONS.VIEW_VANS },
-  'attendances-time-off': { label: 'Attendances & Time Off', icon: CalendarCheck, permission: PERMISSIONS.VIEW_ATTENDANCE },
+  'salesmen': { label: 'Sales Teams', icon: Briefcase, permission: PERMISSIONS.VIEW_EMPLOYEES },
+  'vans': { label: 'Fleet', icon: Truck, permission: PERMISSIONS.VIEW_VANS },
+  'attendance': { label: 'Attendances & Time Off', icon: CalendarCheck, permission: PERMISSIONS.VIEW_ATTENDANCE },
   // Accounting
-  'employee-expenses': { label: 'Employee Expenses', icon: Receipt, permission: PERMISSIONS.VIEW_EXPENSES },
+  'expenses': { label: 'Employee Expenses', icon: Receipt, permission: PERMISSIONS.VIEW_EXPENSES },
   'chart-of-accounts': { label: 'Chart of Accounts', icon: BookOpen, permission: PERMISSIONS.VIEW_ACCOUNTING },
   'journal-entries': { label: 'Journal Entries', icon: BookMarked, permission: PERMISSIONS.VIEW_ACCOUNTING },
   'account-ledger': { label: 'General Ledger', icon: Landmark, permission: PERMISSIONS.VIEW_ACCOUNTING },
   'financial-reports': { label: 'Reporting', icon: FileBarChart, permission: PERMISSIONS.VIEW_FINANCIAL_REPORTS },
   'currencies': { label: 'Currencies', icon: Coins, permission: PERMISSIONS.VIEW_CURRENCIES },
   // Reporting & Analytics
-  'sales-analysis': { label: 'Sales Analysis', icon: BarChart3, permission: PERMISSIONS.VIEW_SALES_REPORT },
-  'advanced-analytics': { label: 'Advanced Analytics', icon: History, permission: PERMISSIONS.VIEW_DEEP_REPORT },
-  // eCommerce
-  'web-orders': { label: 'Web Orders', icon: ShoppingBag, permission: PERMISSIONS.VIEW_ONLINE_ORDERS },
-  'ecommerce-config': { label: 'eCommerce Configuration', icon: Store, permission: PERMISSIONS.VIEW_ONLINE_STORE },
-  // Settings
-  'general-settings': { label: 'General Settings', icon: Settings, permission: PERMISSIONS.VIEW_SETTINGS },
-  'user-interface': { label: 'User Interface', icon: Menu, permission: PERMISSIONS.VIEW_SETTINGS },
-  'users-companies': { label: 'Users & Companies', icon: Shield, permission: PERMISSIONS.VIEW_ROLES },
-  'product-categories': { label: 'Product Categories', icon: Tags, permission: PERMISSIONS.VIEW_CATEGORIES },
-  'units-of-measure': { label: 'Units of Measure (UoM)', icon: Ruler, permission: PERMISSIONS.VIEW_UNITS },
-  // Backward compatibility aliases for old IDs stored in database
-  'leads': { label: 'CRM / Pipeline', icon: UserPlus, permission: PERMISSIONS.VIEW_LEADS },
-  'quotes': { label: 'Quotations', icon: FileText, permission: PERMISSIONS.VIEW_QUOTES },
-  'direct-sales': { label: 'Point of Sale (POS)', icon: ShoppingCart, permission: PERMISSIONS.VIEW_DIRECT_SALES },
-  'sales-history': { label: 'Sales Orders', icon: History, permission: PERMISSIONS.VIEW_DIRECT_SALES },
-  'tasks': { label: 'Activities', icon: ListChecks, permission: PERMISSIONS.VIEW_ORDERS },
-  'returns': { label: 'Credit Notes / Refunds', icon: Receipt, permission: PERMISSIONS.VIEW_RETURNS },
-  'cash': { label: 'Payment Collections', icon: HandCoins, permission: PERMISSIONS.VIEW_COLLECTIONS },
-  'stock-adjustment': { label: 'Inventory Adjustments', icon: ArrowUpDown, permission: PERMISSIONS.ADJUST_STOCK_LEVELS },
-  'warehouses': { label: 'Locations & Warehouses', icon: Warehouse, permission: PERMISSIONS.VIEW_WAREHOUSES },
-  'valuation': { label: 'Inventory Valuation', icon: Scale, permission: PERMISSIONS.VIEW_INVENTORY_VALUATION },
-  'inventory-settings': { label: 'Configuration', icon: SlidersHorizontal, permission: PERMISSIONS.EDIT_INVENTORY_SETTINGS },
-  'raw-materials': { label: 'Bill of Materials (BOM)', icon: Boxes, permission: PERMISSIONS.VIEW_PRODUCTS },
-  'raw-material-purchases': { label: 'Purchase Orders (PO)', icon: FileText, permission: PERMISSIONS.VIEW_SUPPLIERS },
-  'production-orders': { label: 'Manufacturing Orders (MO)', icon: Factory, permission: PERMISSIONS.VIEW_PRODUCTS },
-  'suppliers': { label: 'Vendors', icon: TruckIcon, permission: PERMISSIONS.VIEW_SUPPLIERS },
-  'salesmen': { label: 'Sales Teams', icon: Briefcase, permission: PERMISSIONS.VIEW_EMPLOYEES },
-  'vans': { label: 'Fleet', icon: Truck, permission: PERMISSIONS.VIEW_VANS },
-  'attendance': { label: 'Attendances & Time Off', icon: CalendarCheck, permission: PERMISSIONS.VIEW_ATTENDANCE },
-  'expenses': { label: 'Employee Expenses', icon: Receipt, permission: PERMISSIONS.VIEW_EXPENSES },
   'reports': { label: 'Sales Analysis', icon: BarChart3, permission: PERMISSIONS.VIEW_SALES_REPORT },
   'deep-report': { label: 'Advanced Analytics', icon: History, permission: PERMISSIONS.VIEW_DEEP_REPORT },
+  // eCommerce
   'online-orders': { label: 'Web Orders', icon: ShoppingBag, permission: PERMISSIONS.VIEW_ONLINE_ORDERS },
   'online-store-settings': { label: 'eCommerce Configuration', icon: Store, permission: PERMISSIONS.VIEW_ONLINE_STORE },
+  // Settings
   'settings': { label: 'General Settings', icon: Settings, permission: PERMISSIONS.VIEW_SETTINGS },
   'sidebar-settings': { label: 'User Interface', icon: Menu, permission: PERMISSIONS.VIEW_SETTINGS },
   'roles': { label: 'Users & Companies', icon: Shield, permission: PERMISSIONS.VIEW_ROLES },
   'categories': { label: 'Product Categories', icon: Tags, permission: PERMISSIONS.VIEW_CATEGORIES },
   'units': { label: 'Units of Measure (UoM)', icon: Ruler, permission: PERMISSIONS.VIEW_UNITS },
-}
-
-// Map old page IDs to new route paths
-const PAGE_PATH_MAP: Record<string, string> = {
-  'leads': 'crm-pipeline',
-  'quotes': 'quotations',
-  'direct-sales': 'point-of-sale',
-  'sales-history': 'sales-orders',
-  'tasks': 'activities',
-  'returns': 'credit-notes',
-  'cash': 'payment-collections',
-  'stock-adjustment': 'inventory-adjustments',
-  'warehouses': 'locations-warehouses',
-  'valuation': 'inventory-valuation',
-  'inventory-settings': 'configuration',
-  'raw-materials': 'bill-of-materials',
-  'raw-material-purchases': 'purchase-orders',
-  'production-orders': 'manufacturing-orders',
-  'suppliers': 'vendors',
-  'salesmen': 'sales-teams',
-  'vans': 'fleet',
-  'attendance': 'attendances-time-off',
-  'expenses': 'employee-expenses',
-  'reports': 'sales-analysis',
-  'deep-report': 'advanced-analytics',
-  'online-orders': 'web-orders',
-  'online-store-settings': 'ecommerce-config',
-  'settings': 'general-settings',
-  'sidebar-settings': 'user-interface',
-  'roles': 'users-companies',
-  'categories': 'product-categories',
-  'units': 'units-of-measure',
-}
-
-// Helper to get the correct route path for a page ID
-const getPagePath = (pageId: string): string => {
-  if (pageId === 'dashboard') return '/'
-  const mappedPath = PAGE_PATH_MAP[pageId] || pageId
-  return `/${mappedPath}`
 }
 
 interface NavItem {
@@ -182,58 +114,58 @@ const navSections: NavSection[] = [
   {
     title: 'Sales & CRM',
     items: [
-      { path: '/crm-pipeline', label: 'CRM / Pipeline', icon: UserPlus, permission: PERMISSIONS.VIEW_LEADS },
-      { path: '/quotations', label: 'Quotations', icon: FileText, permission: PERMISSIONS.VIEW_QUOTES },
-      { path: '/sales-orders', label: 'Sales Orders', icon: History, permission: PERMISSIONS.VIEW_DIRECT_SALES },
-      { path: '/point-of-sale', label: 'Point of Sale (POS)', icon: ShoppingCart, permission: PERMISSIONS.VIEW_DIRECT_SALES },
-      { path: '/activities', label: 'Activities', icon: ListChecks, permission: PERMISSIONS.VIEW_ORDERS },
-      { path: '/credit-notes', label: 'Credit Notes / Refunds', icon: Receipt, permission: PERMISSIONS.VIEW_RETURNS },
-      { path: '/payment-collections', label: 'Payment Collections', icon: HandCoins, permission: PERMISSIONS.VIEW_COLLECTIONS },
+      { path: '/leads', label: 'CRM / Pipeline', icon: UserPlus, permission: PERMISSIONS.VIEW_LEADS },
+      { path: '/quotes', label: 'Quotations', icon: FileText, permission: PERMISSIONS.VIEW_QUOTES },
+      { path: '/sales-history', label: 'Sales Orders', icon: History, permission: PERMISSIONS.VIEW_DIRECT_SALES },
+      { path: '/direct-sales', label: 'Point of Sale (POS)', icon: ShoppingCart, permission: PERMISSIONS.VIEW_DIRECT_SALES },
+      { path: '/tasks', label: 'Activities', icon: ListChecks, permission: PERMISSIONS.VIEW_ORDERS },
+      { path: '/returns', label: 'Credit Notes / Refunds', icon: Receipt, permission: PERMISSIONS.VIEW_RETURNS },
+      { path: '/cash', label: 'Payment Collections', icon: HandCoins, permission: PERMISSIONS.VIEW_COLLECTIONS },
     ]
   },
   {
     title: 'Inventory',
     items: [
       { path: '/products', label: 'Products & Variants', icon: Package, permission: PERMISSIONS.VIEW_PRODUCTS },
-      { path: '/inventory-adjustments', label: 'Inventory Adjustments', icon: ArrowUpDown, permission: PERMISSIONS.ADJUST_STOCK_LEVELS },
-      { path: '/locations-warehouses', label: 'Locations & Warehouses', icon: Warehouse, permission: PERMISSIONS.VIEW_WAREHOUSES },
-      { path: '/inventory-valuation', label: 'Inventory Valuation', icon: Scale, permission: PERMISSIONS.VIEW_INVENTORY_VALUATION },
-      { path: '/configuration', label: 'Configuration', icon: SlidersHorizontal, permission: PERMISSIONS.EDIT_INVENTORY_SETTINGS },
+      { path: '/stock-adjustment', label: 'Inventory Adjustments', icon: ArrowUpDown, permission: PERMISSIONS.ADJUST_STOCK_LEVELS },
+      { path: '/warehouses', label: 'Locations & Warehouses', icon: Warehouse, permission: PERMISSIONS.VIEW_WAREHOUSES },
+      { path: '/valuation', label: 'Inventory Valuation', icon: Scale, permission: PERMISSIONS.VIEW_INVENTORY_VALUATION },
+      { path: '/inventory-settings', label: 'Configuration', icon: SlidersHorizontal, permission: PERMISSIONS.EDIT_INVENTORY_SETTINGS },
     ]
   },
   {
     title: 'Manufacturing',
     items: [
-      { path: '/bill-of-materials', label: 'Bill of Materials (BOM)', icon: Boxes, permission: PERMISSIONS.VIEW_PRODUCTS },
-      { path: '/manufacturing-orders', label: 'Manufacturing Orders (MO)', icon: Factory, permission: PERMISSIONS.VIEW_PRODUCTS },
+      { path: '/raw-materials', label: 'Bill of Materials (BOM)', icon: Boxes, permission: PERMISSIONS.VIEW_PRODUCTS },
+      { path: '/production-orders', label: 'Manufacturing Orders (MO)', icon: Factory, permission: PERMISSIONS.VIEW_PRODUCTS },
     ]
   },
   {
     title: 'Purchasing',
     items: [
-      { path: '/purchase-orders', label: 'Purchase Orders (PO)', icon: FileText, permission: PERMISSIONS.VIEW_SUPPLIERS },
+      { path: '/raw-material-purchases', label: 'Purchase Orders (PO)', icon: FileText, permission: PERMISSIONS.VIEW_SUPPLIERS },
     ]
   },
   {
     title: 'Contacts',
     items: [
       { path: '/customers', label: 'Customers', icon: Users, permission: PERMISSIONS.VIEW_CUSTOMERS },
-      { path: '/vendors', label: 'Vendors', icon: TruckIcon, permission: PERMISSIONS.VIEW_SUPPLIERS },
+      { path: '/suppliers', label: 'Vendors', icon: TruckIcon, permission: PERMISSIONS.VIEW_SUPPLIERS },
     ]
   },
   {
     title: 'Human Resources',
     items: [
       { path: '/employees', label: 'Employees', icon: UserCog, permission: PERMISSIONS.VIEW_EMPLOYEES },
-      { path: '/sales-teams', label: 'Sales Teams', icon: Briefcase, permission: PERMISSIONS.VIEW_EMPLOYEES },
-      { path: '/fleet', label: 'Fleet', icon: Truck, permission: PERMISSIONS.VIEW_VANS },
-      { path: '/attendances-time-off', label: 'Attendances & Time Off', icon: CalendarCheck, permission: PERMISSIONS.VIEW_ATTENDANCE },
+      { path: '/salesmen', label: 'Sales Teams', icon: Briefcase, permission: PERMISSIONS.VIEW_EMPLOYEES },
+      { path: '/vans', label: 'Fleet', icon: Truck, permission: PERMISSIONS.VIEW_VANS },
+      { path: '/attendance', label: 'Attendances & Time Off', icon: CalendarCheck, permission: PERMISSIONS.VIEW_ATTENDANCE },
     ]
   },
   {
     title: 'Accounting',
     items: [
-      { path: '/employee-expenses', label: 'Employee Expenses', icon: Receipt, permission: PERMISSIONS.VIEW_EXPENSES },
+      { path: '/expenses', label: 'Employee Expenses', icon: Receipt, permission: PERMISSIONS.VIEW_EXPENSES },
       { path: '/chart-of-accounts', label: 'Chart of Accounts', icon: BookOpen, permission: PERMISSIONS.VIEW_ACCOUNTING },
       { path: '/journal-entries', label: 'Journal Entries', icon: BookMarked, permission: PERMISSIONS.VIEW_ACCOUNTING },
       { path: '/account-ledger', label: 'General Ledger', icon: Landmark, permission: PERMISSIONS.VIEW_ACCOUNTING },
@@ -244,25 +176,25 @@ const navSections: NavSection[] = [
   {
     title: 'Reporting & Analytics',
     items: [
-      { path: '/sales-analysis', label: 'Sales Analysis', icon: BarChart3, permission: PERMISSIONS.VIEW_SALES_REPORT },
-      { path: '/advanced-analytics', label: 'Advanced Analytics', icon: History, permission: PERMISSIONS.VIEW_DEEP_REPORT },
+      { path: '/reports', label: 'Sales Analysis', icon: BarChart3, permission: PERMISSIONS.VIEW_SALES_REPORT },
+      { path: '/deep-report', label: 'Advanced Analytics', icon: History, permission: PERMISSIONS.VIEW_DEEP_REPORT },
     ]
   },
   {
     title: 'eCommerce',
     items: [
-      { path: '/web-orders', label: 'Web Orders', icon: ShoppingBag, permission: PERMISSIONS.VIEW_ONLINE_ORDERS },
-      { path: '/ecommerce-config', label: 'eCommerce Configuration', icon: Store, permission: PERMISSIONS.VIEW_ONLINE_STORE },
+      { path: '/online-orders', label: 'Web Orders', icon: ShoppingBag, permission: PERMISSIONS.VIEW_ONLINE_ORDERS },
+      { path: '/online-store-settings', label: 'eCommerce Configuration', icon: Store, permission: PERMISSIONS.VIEW_ONLINE_STORE },
     ]
   },
   {
     title: 'Settings',
     items: [
-      { path: '/general-settings', label: 'General Settings', icon: Settings, permission: PERMISSIONS.VIEW_SETTINGS },
-      { path: '/user-interface', label: 'User Interface', icon: Menu, permission: PERMISSIONS.VIEW_SETTINGS },
-      { path: '/users-companies', label: 'Users & Companies', icon: Shield, permission: PERMISSIONS.VIEW_ROLES },
-      { path: '/product-categories', label: 'Product Categories', icon: Tags, permission: PERMISSIONS.VIEW_CATEGORIES },
-      { path: '/units-of-measure', label: 'Units of Measure (UoM)', icon: Ruler, permission: PERMISSIONS.VIEW_UNITS },
+      { path: '/settings', label: 'General Settings', icon: Settings, permission: PERMISSIONS.VIEW_SETTINGS },
+      { path: '/sidebar-settings', label: 'User Interface', icon: Menu, permission: PERMISSIONS.VIEW_SETTINGS },
+      { path: '/roles', label: 'Users & Companies', icon: Shield, permission: PERMISSIONS.VIEW_ROLES },
+      { path: '/categories', label: 'Product Categories', icon: Tags, permission: PERMISSIONS.VIEW_CATEGORIES },
+      { path: '/units', label: 'Units of Measure (UoM)', icon: Ruler, permission: PERMISSIONS.VIEW_UNITS },
     ]
   },
 ]
@@ -308,7 +240,7 @@ export default function Layout() {
         items: section.pages
           .filter(pageId => PAGE_META[pageId]) // Only include valid pages
           .map(pageId => ({
-            path: getPagePath(pageId),
+            path: pageId === 'dashboard' ? '/' : `/${pageId}`,
             label: PAGE_META[pageId].label,
             icon: PAGE_META[pageId].icon,
             permission: PAGE_META[pageId].permission
